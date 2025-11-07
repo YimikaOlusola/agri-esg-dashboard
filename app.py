@@ -3,8 +3,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
-# Load ESG data
+# Load ESG data and ensure Year is treated as string to avoid comma formatting
 df = pd.read_csv("esg_data.csv")
+df["Year"] = df["Year"].astype(str)
 
 st.set_page_config(page_title="ESG Dashboard", layout="wide")
 st.title("ESG Dashboard for Agricultural SMEs")
@@ -33,8 +34,8 @@ else:
 
 # Bar chart: ESG Snapshot for 2025
 st.subheader("2025 ESG Snapshot")
-if 2025 in df["Year"].values:
-    latest = df[df["Year"] == 2025].drop("Year", axis=1).T
+if "2025" in df["Year"].values:
+    latest = df[df["Year"] == "2025"].drop("Year", axis=1).T
     latest.columns = ["2025"]
     st.bar_chart(latest)
 else:
@@ -53,7 +54,7 @@ metrics = [
 ]
 
 if all(metric in df.columns for metric in metrics):
-    values_2025 = df[df["Year"] == 2025][metrics].values.flatten()
+    values_2025 = df[df["Year"] == "2025"][metrics].values.flatten()
     min_vals = df[metrics].min()
     max_vals = df[metrics].max()
     normalized = (values_2025 - min_vals) / (max_vals - min_vals) * 100
@@ -79,9 +80,9 @@ else:
 
 # Insights
 st.subheader("Key Insights")
-st.markdown("- Carbon emissions reduced by 27% from 2021 to 2025.")
+st.markdown("- Carbon emissions reduced by 27 percent from 2021 to 2025.")
 st.markdown("- Biodiversity score improved significantly, reflecting regenerative practices.")
-st.markdown("- Energy consumption dropped by over 10%, showing efficiency gains.")
+st.markdown("- Energy consumption dropped by over 10 percent, showing efficiency gains.")
 st.markdown("- Fertilizer usage decreased steadily, supporting soil health and sustainability.")
 
 # Footer
