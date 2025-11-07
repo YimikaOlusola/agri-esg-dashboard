@@ -32,23 +32,29 @@ if biodiversity_col:
 else:
     st.error("Biodiversity Score column not found. Please check your CSV file.")
 
-# Bar chart: ESG Snapshot for 2025 with custom labels
-st.subheader("2025 ESG Snapshot")
+# Custom labels for charts
 custom_labels = {
     "Carbon Emissions (tonnes CO2e)": "Carbon Emission",
     "Water Usage (m3)": "Water Usage (L)",
     "Waste Generated (kg)": "Waste Generated",
-    "Labour Hours (per hectare)": "Labour Hours (per kg)",
+    "Labour Hours (per hectare)": "Labour Hours (hr)",
     "Fertilizer Usage (kg/ha)": "Fertilizer Usage (kg)",
     "Energy Consumption (kWh)": "Energy Consumption",
     biodiversity_col: "Biodiversity Score"
 }
 
+# Horizontal bar chart: ESG Snapshot for 2025
+st.subheader("2025 ESG Snapshot (Horizontal)")
 if "2025" in df["Year"].values:
     latest = df[df["Year"] == "2025"].drop("Year", axis=1).T
     latest = latest.rename(index=custom_labels)
     latest.columns = ["2025"]
-    st.bar_chart(latest)
+
+    fig, ax = plt.subplots(figsize=(8, 6))
+    ax.barh(latest.index, latest["2025"], color="skyblue")
+    ax.set_xlabel("Value")
+    ax.set_title("2025 ESG Snapshot")
+    st.pyplot(fig)
 else:
     st.error("No data found for year 2025.")
 
