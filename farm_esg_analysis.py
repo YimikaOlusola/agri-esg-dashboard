@@ -19,8 +19,7 @@ from PIL import Image
 # PAGE CONFIG (logo as page icon)
 # ------------------------------------------------------------
 
-# 👇 This WILL error if agriesg_icon.png is missing – that's good,
-# because it forces the path to be correct instead of silently failing.
+# This will raise an error if the icon is missing, which helps debugging.
 icon_img = Image.open("agriesg_icon.png")
 
 st.set_page_config(
@@ -30,25 +29,28 @@ st.set_page_config(
 )
 
 # ------------------------------------------------------------
-# GLOBAL STYLING (white UI + Inter font + clear uploader)
+# GLOBAL STYLING (Tenorite + white UI + clear uploader)
 # ------------------------------------------------------------
 st.markdown(
     """
     <style>
-    /* Inter font (clean, modern) */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
+    /* Use Tenorite if available; otherwise fall back gracefully */
     html, body, [class*="css"] {
-        font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-family: "Tenorite", system-ui, -apple-system, BlinkMacSystemFont,
+                     "Segoe UI", sans-serif;
     }
 
     body, .stApp {
         background-color: #ffffff !important;
         color: #111827;
     }
+
+    /* Center content and give it a nice readable width */
     .block-container {
         padding-top: 1.5rem;
         padding-bottom: 3rem;
+        max-width: 1180px;
+        margin: 0 auto;
     }
 
     /* KPI cards */
@@ -64,6 +66,7 @@ st.markdown(
         text-transform: uppercase;
         color: #6b7280;
         margin-bottom: 0.2rem;
+        letter-spacing: 0.04em;
     }
     .kpi-value {
         font-size: 1.35rem;
@@ -139,21 +142,20 @@ alt.themes.enable("agriesg_light")
 # BRANDING: LOGO IN HEADER + SIDEBAR
 # ------------------------------------------------------------
 
-# convert logo to base64 for HTML use
 with open("agriesg_icon.png", "rb") as f:
     encoded_logo = base64.b64encode(f.read()).decode()
 
-# Single, clean header (no double titles)
+# Single, clean header
 header_col1, header_col2 = st.columns([1, 6])
 with header_col1:
-    st.image(icon_img, width=80)
+    st.image(icon_img, width=78)
 with header_col2:
     st.markdown(
         """
-        <h1 style="margin-bottom:0; margin-top:0.2rem;">
+        <h1 style="margin-bottom:0.1rem; margin-top:0.1rem;">
             ESG Dashboard — Farms, Enterprises & Crops
         </h1>
-        <p style="font-size:1rem; color:#4b5563; margin-top:0.15rem;">
+        <p style="font-size:0.98rem; color:#4b5563; margin-top:0;">
             Analyse emissions, water, social indicators and governance at the level of detail you have:
             whole-farm, main enterprises or individual crops.
         </p>
