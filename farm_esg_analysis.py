@@ -7,7 +7,6 @@
 # ================================================================
 
 import base64
-from io import BytesIO
 
 import streamlit as st
 import pandas as pd
@@ -17,14 +16,12 @@ from fpdf import FPDF
 from PIL import Image
 
 # ------------------------------------------------------------
-# PAGE CONFIG (use your logo as page icon)
+# PAGE CONFIG (logo as page icon)
 # ------------------------------------------------------------
-try:
-    ICON_PATH = "agriesg_icon.png"
-    icon_img = Image.open(ICON_PATH)
-except Exception:
-    ICON_PATH = None
-    icon_img = "🌱"  # fallback emoji
+
+# 👇 This WILL error if agriesg_icon.png is missing – that's good,
+# because it forces the path to be correct instead of silently failing.
+icon_img = Image.open("agriesg_icon.png")
 
 st.set_page_config(
     page_title="AgriESG Platform",
@@ -33,18 +30,24 @@ st.set_page_config(
 )
 
 # ------------------------------------------------------------
-# GLOBAL STYLING (WHITE UI + CLEAR UPLOADER)
+# GLOBAL STYLING (white UI + Inter font + clear uploader)
 # ------------------------------------------------------------
 st.markdown(
     """
     <style>
+    /* Inter font (clean, modern) */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    html, body, [class*="css"] {
+        font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
     body, .stApp {
         background-color: #ffffff !important;
         color: #111827;
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
     .block-container {
-        padding-top: 0.5rem;
+        padding-top: 1.5rem;
         padding-bottom: 3rem;
     }
 
@@ -133,78 +136,49 @@ alt.themes.register(
 alt.themes.enable("agriesg_light")
 
 # ------------------------------------------------------------
-# BRANDING: LOAD LOGO AND PREP BASE64
+# BRANDING: LOGO IN HEADER + SIDEBAR
 # ------------------------------------------------------------
-encoded_logo = None
-if ICON_PATH is not None:
-    try:
-        with open(ICON_PATH, "rb") as f:
-            encoded_logo = base64.b64encode(f.read()).decode()
-    except Exception:
-        encoded_logo = None
 
-# ------------------------------------------------------------
-# TOP BRAND BANNER + MAIN HEADER
-# ------------------------------------------------------------
-if encoded_logo:
-    st.markdown(
-        f"""
-        <div style="text-align:center; padding-top:6px; padding-bottom:4px;">
-            <img src="data:image/png;base64,{encoded_logo}" width="110">
-            <h2 style="margin-bottom:0; margin-top:0.5rem;">AgriESG Platform</h2>
-            <p style="font-size:15px; color:#6b7280; margin-top:-4px;">
-                Simple, transparent ESG insights for farms and agri-businesses
-            </p>
-        </div>
-        <hr style="margin-top:0.5rem; margin-bottom:1.0rem;">
-        """,
-        unsafe_allow_html=True,
-    )
-else:
-    st.markdown("## AgriESG Platform")
-    st.markdown("---")
+# convert logo to base64 for HTML use
+with open("agriesg_icon.png", "rb") as f:
+    encoded_logo = base64.b64encode(f.read()).decode()
 
-# main header row (logo + title/description)
-col_h1, col_h2 = st.columns([1, 6])
-with col_h1:
-    if icon_img is not None:
-        try:
-            st.image(icon_img, width=70)
-        except Exception:
-            pass
-with col_h2:
+# Single, clean header (no double titles)
+header_col1, header_col2 = st.columns([1, 6])
+with header_col1:
+    st.image(icon_img, width=80)
+with header_col2:
     st.markdown(
         """
-        <h1 style="margin-bottom:0; margin-top:0.5rem;">
-            🌱 ESG Dashboard — Farms, Enterprises & Crops
+        <h1 style="margin-bottom:0; margin-top:0.2rem;">
+            ESG Dashboard — Farms, Enterprises & Crops
         </h1>
-        <p style="font-size:1rem; color:#4b5563; margin-top:-6px;">
+        <p style="font-size:1rem; color:#4b5563; margin-top:0.15rem;">
             Analyse emissions, water, social indicators and governance at the level of detail you have:
-            whole-farm, enterprises or individual crops.
+            whole-farm, main enterprises or individual crops.
         </p>
         """,
         unsafe_allow_html=True,
     )
 
-# Sidebar branding
-if encoded_logo:
-    st.sidebar.markdown(
-        f"""
-        <div style="text-align:center;">
-            <img src="data:image/png;base64,{encoded_logo}" width="90" style="margin-bottom:5px;">
-            <p style="font-size:14px; color:#374151; margin-bottom:0;">
-                <strong>AgriESG Dashboard</strong>
-            </p>
-            <p style="font-size:12px; color:#6b7280; margin-top:-6px;">
-                v1.0 — Beta
-            </p>
-            <hr>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-else:
-    st.sidebar.markdown("### AgriESG Dashboard\n---")
+st.markdown("---")
+
+# Sidebar branding (small logo + title)
+st.sidebar.markdown(
+    f"""
+    <div style="text-align:center;">
+        <img src="data:image/png;base64,{encoded_logo}" width="80" style="margin-bottom:6px;">
+        <p style="font-size:14px; color:#f9fafb; margin-bottom:0;">
+            <strong>AgriESG Dashboard</strong>
+        </p>
+        <p style="font-size:11px; color:#9ca3af; margin-top:-4px;">
+            v1.0 — Beta
+        </p>
+        <hr style="margin-top:6px; margin-bottom:4px; border-color:#4b5563;">
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 # ------------------------------------------------------------
 # CONSTANTS
@@ -586,7 +560,7 @@ privacy_mode = st.sidebar.checkbox(
 # MULTI-FARM OVERVIEW
 # ------------------------------------------------------------
 if mode == "📊 Multi-Farm Overview":
-    st.header("📊 Multi-Farm ESG Overview")
+    st.subheader("📊 Multi-Farm ESG Overview")
 
     # Aggregate KPIs
     total_area = df["area_ha"].sum()
@@ -594,7 +568,7 @@ if mode == "📊 Multi-Farm Overview":
     total_emissions = df["total_emissions"].sum()
     avg_esg = df["esg_score"].mean()
 
-    st.subheader("Key aggregated metrics")
+    st.markdown("#### Key aggregated metrics")
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         kpi_card("Total area", total_area, " ha", 1)
@@ -606,7 +580,7 @@ if mode == "📊 Multi-Farm Overview":
         kpi_card("Average ESG score", avg_esg, "", 0)
 
     # ---------- ESG SCORE DISTRIBUTION ----------
-    st.markdown("### ESG score distribution")
+    st.markdown("#### ESG score distribution")
 
     df["esg_band"] = pd.cut(
         df["esg_score"],
@@ -651,7 +625,7 @@ if mode == "📊 Multi-Farm Overview":
     st.altair_chart(score_chart, use_container_width=True)
 
     # ---------- AVERAGE ESG COMPONENTS ----------
-    st.markdown("### Average ESG component scores")
+    st.markdown("#### Average ESG component scores")
 
     comp_df = pd.DataFrame(
         {
@@ -679,14 +653,14 @@ if mode == "📊 Multi-Farm Overview":
     st.altair_chart(comp_chart, use_container_width=True)
 
     # ---------- FULL DATA ----------
-    st.markdown("### Full dataset (one row per farm / enterprise / crop)")
+    st.markdown("#### Full dataset (one row per farm / enterprise / crop)")
     st.dataframe(df, use_container_width=True)
 
 # ------------------------------------------------------------
 # FARM / ENTERPRISE / CROP ANALYSIS
 # ------------------------------------------------------------
 else:
-    st.header("🌱 Farm / Enterprise / Crop ESG Analysis")
+    st.subheader("🌱 Farm / Enterprise / Crop ESG Analysis")
 
     record_label = st.sidebar.selectbox(
         "Select a record",
@@ -695,10 +669,10 @@ else:
     )
     row = df[df["record_label"] == record_label].iloc[0]
 
-    st.subheader(row["record_label"])
+    st.markdown(f"#### {record_label}")
 
     # ---------- KPI CARDS ----------
-    st.markdown("### Key performance indicators")
+    st.markdown("##### Key performance indicators")
 
     c1, c2, c3, c4 = st.columns(4)
     with c1:
@@ -736,7 +710,7 @@ else:
         )
 
     # ---------- ESG SCORECARDS ----------
-    st.markdown("### ESG scores")
+    st.markdown("##### ESG scores")
 
     c1, c2, c3, c4 = st.columns(4)
     with c1:
@@ -761,7 +735,7 @@ else:
         )
 
     # ---------- EMISSIONS DONUT ----------
-    st.markdown("### Emissions breakdown")
+    st.markdown("##### Emissions breakdown")
 
     emis_df = pd.DataFrame(
         {
@@ -790,7 +764,7 @@ else:
     st.altair_chart(donut, use_container_width=True)
 
     # ---------- PEER COMPARISON (ANONYMOUS) ----------
-    st.markdown("### Peer comparison (anonymous)")
+    st.markdown("##### Peer comparison (anonymous)")
 
     if privacy_mode:
         st.warning(
@@ -827,7 +801,7 @@ else:
         st.altair_chart(scatter, use_container_width=True)
 
     # ---------- ESG NARRATIVE + PDF DOWNLOAD ----------
-    st.markdown("### ESG narrative report")
+    st.markdown("##### ESG narrative report")
 
     peer_avg = {
         "emissions": df["emissions_per_tonne"].mean(),
