@@ -15,10 +15,59 @@ from io import BytesIO
 # ------------------------------------------------------------
 # PAGE CONFIG
 # ------------------------------------------------------------
-st.set_page_config(
-    page_title="AgriESG Platform",
-    page_icon="🌱",
-    layout="wide",
+import base64
+from PIL import Image
+
+# --------------------------
+# Load logo
+# --------------------------
+logo_path = "agriesg_icon.png"
+logo = Image.open(logo_path)
+
+# Convert logo to base64 (for centered banner)
+with open(logo_path, "rb") as f:
+    encoded_logo = base64.b64encode(f.read()).decode()
+
+st.markdown(f"""
+<div style="text-align:center; padding-top:10px; padding-bottom:5px;">
+    <img src="data:image/png;base64,{encoded_logo}" width="110">
+    <h2 style="margin-bottom:0; margin-top:0.5rem;">AgriESG Platform</h2>
+    <p style="font-size:15px; color:#6b7280; margin-top:-4px;">
+        Simple. Transparent. Farmer-friendly ESG insights.
+    </p>
+</div>
+<hr style="margin-top:0.5rem; margin-bottom:1.2rem;">
+""", unsafe_allow_html=True)
+
+col1, col2 = st.columns([1, 6])
+
+with col1:
+    st.image(logo, width=70)
+
+with col2:
+    st.markdown("""
+        <h1 style="margin-bottom:0; margin-top:0.5rem;">
+            🌱 Farm-Level ESG Dashboard
+        </h1>
+        <p style="font-size:1rem; color:#4b5563; margin-top:-6px;">
+            Analyse emissions, water use, social indicators & governance at any data detail level.
+        </p>
+    """, unsafe_allow_html=True)
+
+st.sidebar.markdown(
+    f"""
+    <div style="text-align:center;">
+        <img src="data:image/png;base64,{encoded_logo}" width="90" style="margin-bottom:5px;">
+        <p style="font-size:14px; color:#374151; margin-bottom:0;">
+            <strong>AgriESG Dashboard</strong>
+        </p>
+        <p style="font-size:12px; color:#6b7280; margin-top:-6px;">
+            v1.0 — Beta
+        </p>
+        <hr>
+    </div>
+    """,
+    unsafe_allow_html=True
 )
 
 # ------------------------------------------------------------
