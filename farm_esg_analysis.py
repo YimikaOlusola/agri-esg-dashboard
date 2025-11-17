@@ -480,7 +480,7 @@ def narrative_to_pdf_bytes(title: str, narrative_md: str) -> bytes:
     # dest="S" returns the whole document as bytes or str depending on FPDF version
     pdf_out = pdf.output(dest="S")
 
-    # Normalise to bytes for Streamlit
+    # 🔒 Normalise to bytes for Streamlit: NEVER .encode() on bytes
     if isinstance(pdf_out, bytes):
         return pdf_out
     else:  # str
