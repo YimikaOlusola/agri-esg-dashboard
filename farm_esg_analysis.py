@@ -447,44 +447,55 @@ Peer average female share is around **{peer_avg['female']*100:.0f}%**.
 # ------------------------------------------------------------
 # SIMPLE PDF GENERATOR FOR ESG NARRATIVE (UNICODE-SAFE, BYTES)
 # ------------------------------------------------------------
+from fpdf import FPDF
+
 def narrative_to_pdf_bytes(title: str, narrative_md: str) -> bytes:
     """
-    Create a simple A4 PDF and return it as raw bytes.
-    Handles unicode by converting to latin-1 and replacing unsupported chars.
+    Return a safe PDF export that works on Streamlit Cloud.
+    Handles unicode, FPDF return types, and prevents NoneType errors.
     """
 
-    def to_latin1(s: str) -> str:
-        # Replace characters outside latin-1 so FPDF doesn't crash
-        return s.encode("latin-1", "replace").decode("latin-1")
-
-    # Strip basic markdown
-    text = (
+    # Remove markdown for plain PDF
+    cleaned = (
         narrative_md.replace("###", "")
-        .replace("####", "")
-        .replace("**", "")
-        .replace("*", "")
+                    .replace("####", "")
+                    .replace("**", "")
+                    .replace("*", "")
     )
 
-    title_l1 = to_latin1(title)
-    text_l1 = to_latin1(text)
+    # Replace all characters that cannot be encoded in latin-1
+    def safe_latin1(text: str) -> str:
+        return text.encode("latin-1", "replace").decode("latin-1")
 
+    title_safe = safe_latin1(title)
+    text_safe = safe_latin1(cleaned)
+
+    # Build PDF
     pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
-    pdf.set_font("Arial", "B", 14)
-    pdf.multi_cell(0, 8, title_l1)
-    pdf.ln(4)
-    pdf.set_font("Arial", "", 11)
-    pdf.multi_cell(0, 6, text_l1)
+    pdf.set_auto_page_break(True, 15)
 
-    # dest="S" returns the whole document as bytes or str depending on FPDF version
+    pdf.set_font("Arial", "B", 14)
+    pdf.multi_cell(0, 8, title_safe)
+    pdf.ln(5)
+
+    pdf.set_font("Arial", "", 11)
+    pdf.multi_cell(0, 6, text_safe)
+
+    # Get PDF in memory
     pdf_out = pdf.output(dest="S")
 
-    # 🔒 Normalise to bytes for Streamlit: NEVER .encode() on bytes
-    if isinstance(pdf_out, bytes):
-        return pdf_out
-    else:  # str
-        return pdf_out.encode("latin-1", "ignore")
+    # --- FIX: handle ALL possible types safely ---
+    if pdf_out is None:
+        # Should not happen, but protects against None → bytes
+        return b""
+
+    if isinstance(pdf_out, (bytes, bytearray)):
+        return bytes(pdf_out)
+
+    # If FPDF returns a string → encode once
+    return pdf_out.encode("latin-1", "replace")
+
 
 
 # ------------------------------------------------------------
