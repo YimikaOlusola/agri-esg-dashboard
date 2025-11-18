@@ -27,7 +27,7 @@ st.set_page_config(
 )
 
 # ------------------------------------------------------------
-# GLOBAL STYLING (dark shell + white panel + KPI cards)
+# GLOBAL STYLING (dark shell + white panel)
 # ------------------------------------------------------------
 st.markdown(
     """
@@ -43,13 +43,11 @@ st.markdown(
         --border-soft: #e5e7eb;
     }
 
-    /* Base font */
     html, body, [class*="css"] {
         font-family: "Tenorite", system-ui, -apple-system, BlinkMacSystemFont,
                      "Segoe UI", sans-serif;
     }
 
-    /* Dark gradient shell, white card in the middle */
     body, .stApp {
         background: radial-gradient(circle at top left, #022c22, #020617 55%);
         color: var(--text-main);
@@ -64,7 +62,6 @@ st.markdown(
         box-shadow: 0 26px 60px rgba(15, 23, 42, 0.32);
     }
 
-    /* Sidebar – glassy dark */
     section[data-testid="stSidebar"] {
         background: rgba(15, 23, 42, 0.98) !important;
         border-right: 1px solid rgba(148,163,184,0.35);
@@ -74,44 +71,6 @@ st.markdown(
         font-size: 0.9rem;
     }
 
-    /* KPI cards */
-    .kpi-card {
-        padding: 1.1rem 1.3rem;
-        border-radius: 26px;
-        background: radial-gradient(circle at top left, #ffffff, #f9fafb 65%);
-        border: 1px solid #e5e7eb;
-        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.10);
-    }
-    .kpi-label {
-        font-size: 0.78rem;
-        text-transform: uppercase;
-        color: var(--text-muted);
-        margin-bottom: 0.35rem;
-        letter-spacing: 0.16em;
-    }
-    .kpi-value {
-        font-size: 1.55rem;
-        font-weight: 700;
-        color: var(--text-main);
-    }
-
-    /* ESG score chips */
-    .score-card {
-        padding: 14px 16px;
-        border-radius: 999px;
-        color: white;
-        font-weight: 600;
-        text-align: center;
-        font-size: 0.95rem;
-        margin-bottom: 10px;
-        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.25);
-    }
-    .score-green { background: linear-gradient(135deg, #22c55e, #16a34a); }
-    .score-amber { background: linear-gradient(135deg, #facc15, #eab308); color:#1f2937!important; }
-    .score-orange { background: linear-gradient(135deg, #fb923c, #f97316); }
-    .score-red { background: linear-gradient(135deg, #ef4444, #b91c1c); }
-
-    /* Section titles */
     .section-eyebrow {
         font-size: 0.78rem;
         text-transform: uppercase;
@@ -126,7 +85,15 @@ st.markdown(
         color: var(--text-main);
     }
 
-    /* File uploader */
+    .kpi-label-inline {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        color: var(--text-muted);
+        text-align: center;
+        margin-top: -0.3rem;
+    }
+
     div[data-testid="stFileUploader"] > label div[data-testid="stFileUploaderDropzone"] {
         background-color: #f3f4f6;
         border: 1px dashed #d1d5db;
@@ -149,7 +116,6 @@ st.markdown(
         border: none !important;
     }
 
-    /* Alerts */
     div[data-testid="stAlert"] {
         background-color: #fef9c3 !important;
         border: 1px solid #facc15 !important;
@@ -163,7 +129,7 @@ st.markdown(
 )
 
 # ------------------------------------------------------------
-# ALTAIR LIGHT THEME (uniform green palette)
+# ALTAIR THEME (uniform green palette)
 # ------------------------------------------------------------
 alt.themes.register(
     "agriesg_light",
@@ -335,22 +301,6 @@ def compute_esg_scores(row):
 # ------------------------------------------------------------
 # KPI HELPERS
 # ------------------------------------------------------------
-def kpi_card(label, value, unit="", precision=2):
-    if pd.isna(value):
-        display = "N/A"
-    else:
-        display = f"{value:.{precision}f}{unit}"
-    st.markdown(
-        f"""
-        <div class="kpi-card">
-            <div class="kpi-label">{label}</div>
-            <div class="kpi-value">{display}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
 def score_color(score):
     if score >= 80:
         return "score-green"
@@ -359,6 +309,72 @@ def score_color(score):
     if score >= 40:
         return "score-orange"
     return "score-red"
+
+
+def relative_position(df, column, value, higher_is_better=True) -> float:
+    """
+    Return a 0–100 value showing where 'value' sits within the range
+    of the uploaded dataset for that column.
+    """
+    series = df[column].dropna()
+    if series.empty or series.nunique() == 1 or pd.isna(value):
+        return 50.0
+
+    min_v = float(series.min())
+    max_v = float(series.max())
+    if max_v == min_v:
+        return 50.0
+
+    if higher_is_better:
+        pct = (value - min_v) / (max_v - min_v)
+    else:
+        pct = (max_v - value) / (max_v - min_v)
+
+    pct = max(0.0, min(1.0, pct))
+    return pct * 100.0
+
+
+def circular_kpi(label: str, value, unit: str, precision: int, pct: float):
+    """
+    Render a circular KPI gauge with the value in the centre and a
+    green ring indicating 'pct' (0–100) relative performance.
+    """
+    if pd.isna(value):
+        value_text = "N/A"
+    else:
+        value_text = f"{value:.{precision}f}{unit}"
+
+    data = pd.DataFrame(
+        {"part": ["Filled", "Remaining"], "value": [pct, max(0, 100 - pct)]}
+    )
+
+    arc = (
+        alt.Chart(data)
+        .mark_arc(innerRadius=38, outerRadius=58)
+        .encode(
+            theta="value:Q",
+            color=alt.Color(
+                "part:N",
+                scale=alt.Scale(range=["#16a34a", "#e5e7eb"]),
+                legend=None,
+            ),
+        )
+    )
+
+    text_df = pd.DataFrame({"value": [value_text]})
+    text = (
+        alt.Chart(text_df)
+        .mark_text(color="#0f172a", fontSize=16, fontWeight="bold")
+        .encode(text="value:N")
+    )
+
+    chart = alt.layer(arc, text).properties(width=150, height=150)
+
+    st.altair_chart(chart, use_container_width=False)
+    st.markdown(
+        f"<div class='kpi-label-inline'>{label}</div>",
+        unsafe_allow_html=True,
+    )
 
 
 # ------------------------------------------------------------
@@ -493,30 +509,22 @@ Peer average female share is around **{peer_avg['female']*100:.0f}%**.
 
 
 # ------------------------------------------------------------
-# SIMPLE PDF GENERATOR FOR ESG NARRATIVE (UNICODE-SAFE, BYTES)
+# SIMPLE PDF GENERATOR
 # ------------------------------------------------------------
 def narrative_to_pdf_bytes(title: str, narrative_md: str) -> bytes:
-    """
-    Return a safe PDF export that works on Streamlit Cloud.
-    Handles unicode, FPDF return types, and prevents NoneType errors.
-    """
-
-    # Remove markdown for plain PDF
     cleaned = (
         narrative_md.replace("###", "")
-                    .replace("####", "")
-                    .replace("**", "")
-                    .replace("*", "")
+        .replace("####", "")
+        .replace("**", "")
+        .replace("*", "")
     )
 
-    # Replace all characters that cannot be encoded in latin-1
     def safe_latin1(text: str) -> str:
         return text.encode("latin-1", "replace").decode("latin-1")
 
     title_safe = safe_latin1(title)
     text_safe = safe_latin1(cleaned)
 
-    # Build PDF
     pdf = FPDF()
     pdf.add_page()
     pdf.set_auto_page_break(True, 15)
@@ -528,15 +536,12 @@ def narrative_to_pdf_bytes(title: str, narrative_md: str) -> bytes:
     pdf.set_font("Arial", "", 11)
     pdf.multi_cell(0, 6, text_safe)
 
-    # Get PDF in memory
     pdf_out = pdf.output(dest="S")
 
     if pdf_out is None:
         return b""
-
     if isinstance(pdf_out, (bytes, bytearray)):
         return bytes(pdf_out)
-
     return pdf_out.encode("latin-1", "replace")
 
 
@@ -635,13 +640,13 @@ if mode == "📊 Multi-Farm Overview":
     st.markdown("<div class='section-eyebrow'>Key metrics</div>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        kpi_card("Total area", total_area, " ha", 1)
+        st.metric("Total area (ha)", f"{total_area:,.1f}")
     with c2:
-        kpi_card("Total yield", total_yield, " t", 1)
+        st.metric("Total yield (t)", f"{total_yield:,.1f}")
     with c3:
-        kpi_card("Total emissions", total_emissions, " kg CO₂e", 0)
+        st.metric("Total emissions (kg CO₂e)", f"{total_emissions:,.0f}")
     with c4:
-        kpi_card("Average ESG score", avg_esg, "", 0)
+        st.metric("Average ESG score", f"{avg_esg:.0f} / 100")
 
     st.markdown(
         "<div class='section-eyebrow'>Distribution</div>"
@@ -752,198 +757,101 @@ else:
 
     st.markdown(f"#### {record_label}")
 
-    # ---------- KPI CARDS ----------
+    # ---------- CIRCULAR KPI GAUGES ----------
     st.markdown(
         "<div class='section-eyebrow'>Performance</div>"
         "<div class='section-title'>Key performance indicators</div>",
         unsafe_allow_html=True,
     )
 
-    c1, c2, c3, c4 = st.columns(4)
+    # First row: yield, emissions intensity, water intensity
+    c1, c2, c3 = st.columns(3)
     with c1:
-        kpi_card("Yield per ha", row["yield_per_ha"], " t/ha", 2)
+        pct = relative_position(df, "yield_per_ha", row["yield_per_ha"], higher_is_better=True)
+        circular_kpi("Yield per ha", row["yield_per_ha"], " t/ha", 2, pct)
     with c2:
-        kpi_card(
-            "Emissions per tonne",
-            row["emissions_per_tonne"],
-            " kg CO₂e/t",
-            1,
+        pct = relative_position(
+            df, "emissions_per_tonne", row["emissions_per_tonne"], higher_is_better=False
         )
+        circular_kpi("Emissions per tonne", row["emissions_per_tonne"], " kg CO₂e/t", 1, pct)
     with c3:
-        kpi_card("Water per tonne", row["water_per_tonne"], " m³/t", 1)
+        pct = relative_position(
+            df, "water_per_tonne", row["water_per_tonne"], higher_is_better=False
+        )
+        circular_kpi("Water per tonne", row["water_per_tonne"], " m³/t", 1, pct)
+
+    # Second row: female workforce, total emissions, accident rate
+    c4, c5, c6 = st.columns(3)
     with c4:
-        kpi_card(
-            "Female workforce",
-            row["female_share"] * 100 if pd.notna(row["female_share"]) else np.nan,
-            " %",
-            0,
-        )
-
-    c5, c6, c7, c8 = st.columns(4)
+        female_val = row["female_share"] * 100 if pd.notna(row["female_share"]) else np.nan
+        pct = relative_position(df.assign(female_pct=df["female_share"] * 100),
+                                "female_pct",
+                                female_val,
+                                higher_is_better=True)
+        circular_kpi("Female workforce", female_val, " %", 0, pct)
     with c5:
-        kpi_card("Total emissions", row["total_emissions"], " kg CO₂e", 0)
+        pct = relative_position(
+            df, "total_emissions", row["total_emissions"], higher_is_better=False
+        )
+        circular_kpi("Total emissions", row["total_emissions"], " kg CO₂e", 0, pct)
     with c6:
-        kpi_card("Area (this record)", row["area_ha"], " ha", 1)
-    with c7:
-        kpi_card("Workers", row["workers_total"], "", 0)
-    with c8:
-        kpi_card(
-            "Accident rate",
-            row["accidents_per_100_workers"],
-            " /100 workers",
-            1,
+        pct = relative_position(
+            df, "accidents_per_100_workers", row["accidents_per_100_workers"],
+            higher_is_better=False,
         )
+        circular_kpi("Accident rate", row["accidents_per_100_workers"], " /100 workers", 1, pct)
 
-    # ---------- KPI SNAPSHOT GRAPHS ----------
-    st.markdown(
-        "<div class='section-eyebrow'>Visuals</div>"
-        "<div class='section-title'>KPI snapshots</div>",
-        unsafe_allow_html=True,
-    )
-
-    # Production & environment KPIs — selected vs peer average
-    env_kpis = [
-        (
-            "Yield (t/ha)",
-            float(row["yield_per_ha"]),
-            float(df["yield_per_ha"].mean()),
-        ),
-        (
-            "Emissions per t\n(kg CO₂e/t)",
-            float(row["emissions_per_tonne"]),
-            float(df["emissions_per_tonne"].mean()),
-        ),
-        (
-            "Water per t\n(m³/t)",
-            float(row["water_per_tonne"]),
-            float(df["water_per_tonne"].mean()),
-        ),
-    ]
-
-    env_chart_df = pd.DataFrame(
-        [
-            {"KPI": name, "Value": value_sel, "Type": "Selected record"}
-            for name, value_sel, _ in env_kpis
-        ]
-        + [
-            {"KPI": name, "Value": value_peer, "Type": "Peer average"}
-            for name, _, value_peer in env_kpis
-        ]
-    )
-
-    env_chart = (
-        alt.Chart(env_chart_df)
-        .mark_bar(cornerRadiusTopLeft=6, cornerRadiusTopRight=6)
-        .encode(
-            x=alt.X(
-                "KPI:N",
-                title="",
-                axis=alt.Axis(labelAngle=0, labelLine=False),
-            ),
-            xOffset="Type:N",
-            y=alt.Y("Value:Q", title=""),
-            color=alt.Color(
-                "Type:N",
-                title="",
-                scale=alt.Scale(range=["#16a34a", "#9ca3af"]),
-            ),
-            tooltip=[
-                "Type",
-                "KPI",
-                alt.Tooltip("Value:Q", format=".2f"),
-            ],
-        )
-        .properties(height=260)
-    )
-
-    # People & safety KPIs — selected vs peer average
-    female_pct = (
-        float(row["female_share"] * 100) if pd.notna(row["female_share"]) else np.nan
-    )
-    female_peer = float(df["female_share"].mean() * 100)
-
-    soc_kpis = [
-        ("Female workforce (%)", female_pct, female_peer),
-        ("Workers (count)", float(row["workers_total"]), float(df["workers_total"].mean())),
-        (
-            "Accident rate\n(/100 workers)",
-            float(row["accidents_per_100_workers"]),
-            float(df["accidents_per_100_workers"].mean()),
-        ),
-    ]
-
-    soc_chart_df = pd.DataFrame(
-        [
-            {"KPI": name, "Value": value_sel, "Type": "Selected record"}
-            for name, value_sel, _ in soc_kpis
-        ]
-        + [
-            {"KPI": name, "Value": value_peer, "Type": "Peer average"}
-            for name, _, value_peer in soc_kpis
-        ]
-    )
-
-    soc_chart = (
-        alt.Chart(soc_chart_df)
-        .mark_bar(cornerRadiusTopLeft=6, cornerRadiusTopRight=6)
-        .encode(
-            x=alt.X(
-                "KPI:N",
-                title="",
-                axis=alt.Axis(labelAngle=0, labelLine=False),
-            ),
-            xOffset="Type:N",
-            y=alt.Y("Value:Q", title=""),
-            color=alt.Color(
-                "Type:N",
-                title="",
-                scale=alt.Scale(range=["#16a34a", "#9ca3af"]),
-            ),
-            tooltip=[
-                "Type",
-                "KPI",
-                alt.Tooltip("Value:Q", format=".2f"),
-            ],
-        )
-        .properties(height=260)
-    )
-
-    c_env, c_soc = st.columns(2)
-    with c_env:
-        st.markdown("**Production & environment**")
-        st.altair_chart(env_chart, use_container_width=True)
-    with c_soc:
-        st.markdown("**People & safety**")
-        st.altair_chart(soc_chart, use_container_width=True)
-
-    # ---------- ESG SCORES ----------
+    # ---------- ESG SCORES (bar chart) ----------
     st.markdown(
         "<div class='section-eyebrow'>Scores</div>"
-        "<div class='section-title'>ESG scores</div>",
+        "<div class='section-title'>ESG scores — selected vs peer average</div>",
         unsafe_allow_html=True,
     )
 
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        st.markdown(
-            f"<div class='score-card {score_color(row['env_score'])}'>Environment<br>{row['env_score']:.0f}/100</div>",
-            unsafe_allow_html=True,
+    scores_df = pd.DataFrame(
+        {
+            "Dimension": ["Environment", "Social", "Governance", "Overall ESG"],
+            "Selected record": [
+                float(row["env_score"]),
+                float(row["soc_score"]),
+                float(row["gov_score"]),
+                float(row["esg_score"]),
+            ],
+            "Peer average": [
+                float(df["env_score"].mean()),
+                float(df["soc_score"].mean()),
+                float(df["gov_score"].mean()),
+                float(df["esg_score"].mean()),
+            ],
+        }
+    ).melt("Dimension", var_name="Type", value_name="Score")
+
+    scores_chart = (
+        alt.Chart(scores_df)
+        .mark_bar(cornerRadiusTopLeft=6, cornerRadiusTopRight=6)
+        .encode(
+            x=alt.X(
+                "Dimension:N",
+                title="",
+                axis=alt.Axis(labelAngle=0, labelLine=False),
+            ),
+            xOffset="Type:N",
+            y=alt.Y("Score:Q", title="Score (0–100)", scale=alt.Scale(domain=[0, 100])),
+            color=alt.Color(
+                "Type:N",
+                title="",
+                scale=alt.Scale(range=["#16a34a", "#9ca3af"]),
+            ),
+            tooltip=[
+                "Type",
+                "Dimension",
+                alt.Tooltip("Score:Q", format=".0f"),
+            ],
         )
-    with c2:
-        st.markdown(
-            f"<div class='score-card {score_color(row['soc_score'])}'>Social<br>{row['soc_score']:.0f}/100</div>",
-            unsafe_allow_html=True,
-        )
-    with c3:
-        st.markdown(
-            f"<div class='score-card {score_color(row['gov_score'])}'>Governance<br>{row['gov_score']:.0f}/100</div>",
-            unsafe_allow_html=True,
-        )
-    with c4:
-        st.markdown(
-            f"<div class='score-card {score_color(row['esg_score'])}'>Overall ESG<br>{row['esg_score']:.0f}/100</div>",
-            unsafe_allow_html=True,
-        )
+        .properties(height=270)
+    )
+
+    st.altair_chart(scores_chart, use_container_width=True)
 
     # ---------- EMISSIONS BREAKDOWN ----------
     st.markdown(
