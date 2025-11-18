@@ -27,73 +27,111 @@ st.set_page_config(
 )
 
 # ------------------------------------------------------------
-# GLOBAL STYLING (Tenorite + white UI + clear uploader + readable alerts)
+# GLOBAL STYLING (Tenorite + dark shell + white panel + KPI cards)
 # ------------------------------------------------------------
 st.markdown(
     """
     <style>
-    /* Use Tenorite if available; otherwise fall back gracefully */
+    :root {
+        --agri-bg: #020617;
+        --panel-bg: #ffffff;
+        --accent: #22c55e;
+        --accent-soft: #dcfce7;
+        --accent-strong: #16a34a;
+        --text-main: #0f172a;
+        --text-muted: #6b7280;
+        --border-soft: #e5e7eb;
+    }
+
+    /* Base font */
     html, body, [class*="css"] {
         font-family: "Tenorite", system-ui, -apple-system, BlinkMacSystemFont,
                      "Segoe UI", sans-serif;
     }
 
+    /* Dark gradient shell, white card in the middle */
     body, .stApp {
-        background-color: #ffffff !important;
-        color: #111827;
+        background: radial-gradient(circle at top left, #022c22, #020617 55%);
+        color: var(--text-main);
     }
 
-    /* Center content and give it a nice readable width */
     .block-container {
-        padding-top: 1.5rem;
-        padding-bottom: 3rem;
-        max-width: 1180px;
-        margin: 0 auto;
+        padding: 2rem 2.5rem 3rem;
+        max-width: 1300px;
+        margin: 1.75rem auto 2.5rem auto;
+        background: var(--panel-bg);
+        border-radius: 24px;
+        box-shadow: 0 26px 60px rgba(15, 23, 42, 0.32);
+    }
+
+    /* Sidebar – glassy dark */
+    section[data-testid="stSidebar"] {
+        background: rgba(15, 23, 42, 0.98) !important;
+        border-right: 1px solid rgba(148,163,184,0.35);
+    }
+    section[data-testid="stSidebar"] * {
+        color: #e5e7eb !important;
+        font-size: 0.9rem;
     }
 
     /* KPI cards */
     .kpi-card {
-        padding: 1.0rem 1.1rem;
+        padding: 1.0rem 1.15rem;
         border-radius: 18px;
-        background-color: #ffffff;
-        border: 1px solid #e5e7eb;
-        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+        background: #ffffff;
+        border: 1px solid var(--border-soft);
+        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
     }
     .kpi-label {
         font-size: 0.78rem;
         text-transform: uppercase;
-        color: #6b7280;
-        margin-bottom: 0.2rem;
-        letter-spacing: 0.04em;
+        color: var(--text-muted);
+        margin-bottom: 0.25rem;
+        letter-spacing: 0.12em;
     }
     .kpi-value {
-        font-size: 1.35rem;
+        font-size: 1.45rem;
         font-weight: 700;
-        color: #111827;
+        color: var(--text-main);
     }
 
-    /* ESG score cards */
+    /* ESG score chips */
     .score-card {
-        padding: 15px;
-        border-radius: 14px;
+        padding: 14px 16px;
+        border-radius: 999px;
         color: white;
         font-weight: 600;
         text-align: center;
-        font-size: 1.05rem;
+        font-size: 0.95rem;
         margin-bottom: 10px;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.25);
     }
-    .score-green { background-color: #22c55e; }
-    .score-amber { background-color: #facc15; color: #1f2937 !important; }
-    .score-orange { background-color: #fb923c; }
-    .score-red { background-color: #ef4444; }
+    .score-green { background: linear-gradient(135deg, #22c55e, #16a34a); }
+    .score-amber { background: linear-gradient(135deg, #facc15, #eab308); color:#1f2937!important; }
+    .score-orange { background: linear-gradient(135deg, #fb923c, #f97316); }
+    .score-red { background: linear-gradient(135deg, #ef4444, #b91c1c); }
 
-    /* File uploader: lighter background + dark text + visible button */
+    /* Section titles */
+    .section-eyebrow {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        color: var(--text-muted);
+        margin-bottom: 0.1rem;
+    }
+    .section-title {
+        font-size: 1.15rem;
+        font-weight: 600;
+        margin-bottom: 0.8rem;
+        color: var(--text-main);
+    }
+
+    /* File uploader */
     div[data-testid="stFileUploader"] > label div[data-testid="stFileUploaderDropzone"] {
         background-color: #f3f4f6;
         border: 1px dashed #d1d5db;
         color: #111827;
     }
-    /* Uploaded filename row */
     div[data-testid="stFileUploader"] div[role="list"] div {
         background-color: #f9fafb;
         border-radius: 0.5rem;
@@ -102,9 +140,8 @@ st.markdown(
     div[data-testid="stFileUploader"] div[role="list"] span {
         color: #111827 !important;
     }
-    /* Browse files button */
     div[data-testid="stFileUploader"] button[kind="secondary"] {
-        background-color: #2563eb !important;
+        background-color: #16a34a !important;
         color: #ffffff !important;
         border-radius: 999px !important;
         padding: 0.25rem 0.9rem !important;
@@ -112,13 +149,13 @@ st.markdown(
         border: none !important;
     }
 
-    /* Alerts (info / warning / error): readable text & soft yellow bg */
+    /* Alerts */
     div[data-testid="stAlert"] {
-        background-color: #fef9c3 !important;  /* pale yellow */
+        background-color: #fef9c3 !important;
         border: 1px solid #facc15 !important;
     }
     div[data-testid="stAlert"] * {
-        color: #111827 !important;            /* force dark text for everything */
+        color: #111827 !important;
     }
     </style>
     """,
@@ -126,7 +163,7 @@ st.markdown(
 )
 
 # ------------------------------------------------------------
-# ALTAIR LIGHT THEME
+# ALTAIR LIGHT THEME (green-forward palette)
 # ------------------------------------------------------------
 alt.themes.register(
     "agriesg_light",
@@ -138,8 +175,18 @@ alt.themes.register(
                 "stroke": "transparent",
             },
             "background": "white",
-            "axis": {"labelColor": "#374151", "titleColor": "#111827"},
+            "axis": {
+                "labelColor": "#4b5563",
+                "titleColor": "#111827",
+                "grid": True,
+                "gridColor": "#e5e7eb",
+            },
             "legend": {"labelColor": "#374151", "titleColor": "#111827"},
+            "range": {
+                # default category range – mostly greens + one accent
+                "category": ["#16a34a", "#22c55e", "#4ade80", "#65a30d",
+                             "#0f766e", "#22c55e", "#16a34a", "#4ade80"],
+            },
         }
     },
 )
@@ -447,8 +494,6 @@ Peer average female share is around **{peer_avg['female']*100:.0f}%**.
 # ------------------------------------------------------------
 # SIMPLE PDF GENERATOR FOR ESG NARRATIVE (UNICODE-SAFE, BYTES)
 # ------------------------------------------------------------
-from fpdf import FPDF
-
 def narrative_to_pdf_bytes(title: str, narrative_md: str) -> bytes:
     """
     Return a safe PDF export that works on Streamlit Cloud.
@@ -485,17 +530,13 @@ def narrative_to_pdf_bytes(title: str, narrative_md: str) -> bytes:
     # Get PDF in memory
     pdf_out = pdf.output(dest="S")
 
-    # --- FIX: handle ALL possible types safely ---
     if pdf_out is None:
-        # Should not happen, but protects against None → bytes
         return b""
 
     if isinstance(pdf_out, (bytes, bytearray)):
         return bytes(pdf_out)
 
-    # If FPDF returns a string → encode once
     return pdf_out.encode("latin-1", "replace")
-
 
 
 # ------------------------------------------------------------
@@ -579,14 +620,18 @@ privacy_mode = st.sidebar.checkbox(
 # MULTI-FARM OVERVIEW
 # ------------------------------------------------------------
 if mode == "📊 Multi-Farm Overview":
-    st.subheader("📊 Multi-Farm ESG Overview")
+    st.markdown(
+        "<div class='section-eyebrow'>Overview</div>"
+        "<div class='section-title'>📊 Multi-Farm ESG Overview</div>",
+        unsafe_allow_html=True,
+    )
 
     total_area = df["area_ha"].sum()
     total_yield = df["yield_tonnes"].sum()
     total_emissions = df["total_emissions"].sum()
     avg_esg = df["esg_score"].mean()
 
-    st.markdown("#### Key aggregated metrics")
+    st.markdown("<div class='section-eyebrow'>Key metrics</div>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         kpi_card("Total area", total_area, " ha", 1)
@@ -597,7 +642,11 @@ if mode == "📊 Multi-Farm Overview":
     with c4:
         kpi_card("Average ESG score", avg_esg, "", 0)
 
-    st.markdown("#### ESG score distribution")
+    st.markdown(
+        "<div class='section-eyebrow'>Distribution</div>"
+        "<div class='section-title'>ESG score distribution</div>",
+        unsafe_allow_html=True,
+    )
 
     df["esg_band"] = pd.cut(
         df["esg_score"],
@@ -621,7 +670,7 @@ if mode == "📊 Multi-Farm Overview":
                         "Good",
                         "Excellent",
                     ],
-                    range=["#ef4444", "#fb923c", "#facc15", "#22c55e"],
+                    range=["#b91c1c", "#f97316", "#eab308", "#16a34a"],
                 ),
             ),
             tooltip=[
@@ -641,7 +690,11 @@ if mode == "📊 Multi-Farm Overview":
 
     st.altair_chart(score_chart, use_container_width=True)
 
-    st.markdown("#### Average ESG component scores")
+    st.markdown(
+        "<div class='section-eyebrow'>Components</div>"
+        "<div class='section-title'>Average ESG component scores</div>",
+        unsafe_allow_html=True,
+    )
 
     comp_df = pd.DataFrame(
         {
@@ -656,26 +709,38 @@ if mode == "📊 Multi-Farm Overview":
 
     comp_chart = (
         alt.Chart(comp_df)
-        .mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4)
+        .mark_bar(cornerRadiusTopLeft=6, cornerRadiusTopRight=6)
         .encode(
             x=alt.X("Component:N", title=""),
-            y=alt.Y("Score:Q", title="Average score"),
-            color=alt.Color("Component:N", legend=None),
+            y=alt.Y("Score:Q", title="Average score", scale=alt.Scale(domain=[0, 100])),
+            color=alt.Color(
+                "Component:N",
+                legend=None,
+                scale=alt.Scale(range=["#16a34a", "#22c55e", "#4ade80"]),
+            ),
             tooltip=["Component", alt.Tooltip("Score:Q", format=".0f")],
         )
-        .properties(height=300)
+        .properties(height=260)
     )
 
     st.altair_chart(comp_chart, use_container_width=True)
 
-    st.markdown("#### Full dataset (one row per farm / enterprise / crop)")
+    st.markdown(
+        "<div class='section-eyebrow'>Data</div>"
+        "<div class='section-title'>Full dataset (one row per farm / enterprise / crop)</div>",
+        unsafe_allow_html=True,
+    )
     st.dataframe(df, use_container_width=True)
 
 # ------------------------------------------------------------
 # FARM / ENTERPRISE / CROP ANALYSIS
 # ------------------------------------------------------------
 else:
-    st.subheader("🌱 Farm / Enterprise / Crop ESG Analysis")
+    st.markdown(
+        "<div class='section-eyebrow'>Drill-down</div>"
+        "<div class='section-title'>🌱 Farm / Enterprise / Crop ESG Analysis</div>",
+        unsafe_allow_html=True,
+    )
 
     record_label = st.sidebar.selectbox(
         "Select a record",
@@ -686,7 +751,11 @@ else:
 
     st.markdown(f"#### {record_label}")
 
-    st.markdown("##### Key performance indicators")
+    st.markdown(
+        "<div class='section-eyebrow'>Performance</div>"
+        "<div class='section-title'>Key performance indicators</div>",
+        unsafe_allow_html=True,
+    )
 
     c1, c2, c3, c4 = st.columns(4)
     with c1:
@@ -723,7 +792,11 @@ else:
             1,
         )
 
-    st.markdown("##### ESG scores")
+    st.markdown(
+        "<div class='section-eyebrow'>Scores</div>"
+        "<div class='section-title'>ESG scores</div>",
+        unsafe_allow_html=True,
+    )
 
     c1, c2, c3, c4 = st.columns(4)
     with c1:
@@ -747,7 +820,11 @@ else:
             unsafe_allow_html=True,
         )
 
-    st.markdown("##### Emissions breakdown")
+    st.markdown(
+        "<div class='section-eyebrow'>Emissions</div>"
+        "<div class='section-title'>Emissions breakdown</div>",
+        unsafe_allow_html=True,
+    )
 
     emis_df = pd.DataFrame(
         {
@@ -765,7 +842,13 @@ else:
         .mark_arc(innerRadius=60)
         .encode(
             theta="kg_co2e:Q",
-            color="Source:N",
+            color=alt.Color(
+                "Source:N",
+                scale=alt.Scale(
+                    range=["#16a34a", "#22c55e", "#4ade80"]
+                ),
+                title="Source",
+            ),
             tooltip=[
                 "Source",
                 alt.Tooltip("kg_co2e:Q", title="Emissions (kg CO₂e)", format=".0f"),
@@ -775,7 +858,11 @@ else:
     )
     st.altair_chart(donut, use_container_width=True)
 
-    st.markdown("##### Peer comparison (anonymous)")
+    st.markdown(
+        "<div class='section-eyebrow'>Benchmark</div>"
+        "<div class='section-title'>Peer comparison (anonymous)</div>",
+        unsafe_allow_html=True,
+    )
 
     if privacy_mode:
         st.warning(
@@ -793,7 +880,11 @@ else:
             .encode(
                 x=alt.X("yield_per_ha:Q", title="Yield (t/ha)"),
                 y=alt.Y("emissions_per_ha:Q", title="Emissions (kg CO₂e/ha)"),
-                color=alt.Color("Farm:N", title=""),
+                color=alt.Color(
+                    "Farm:N",
+                    title="",
+                    scale=alt.Scale(range=["#16a34a", "#9ca3af"]),
+                ),
                 tooltip=[
                     alt.Tooltip("Farm:N", title="Farm"),
                     alt.Tooltip(
@@ -811,7 +902,11 @@ else:
 
         st.altair_chart(scatter, use_container_width=True)
 
-    st.markdown("##### ESG narrative report")
+    st.markdown(
+        "<div class='section-eyebrow'>Narrative</div>"
+        "<div class='section-title'>ESG narrative report</div>",
+        unsafe_allow_html=True,
+    )
 
     peer_avg = {
         "emissions": df["emissions_per_tonne"].mean(),
