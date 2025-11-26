@@ -13,7 +13,8 @@ def generate_ai_insights(
     yield_per_ha: float,
     female_share: float,
     accidents: float,
-    farm_id: str
+    farm_id: str,
+    farmer_name: str = None
 ) -> list[str]:
     """
     Generate AI-powered, farmer-friendly insights using Gemini.
@@ -23,52 +24,48 @@ def generate_ai_insights(
     # Check if API key exists
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:
+        greeting = f"Hello {farmer_name}!" if farmer_name else "Hello!"
         return [
-            "Set up your Google API key to get personalized advice.",
-            "Check your .env file for GOOGLE_API_KEY configuration.",
-            "Contact support for help with AI features."
+            f"{greeting} Set up your Google API key to get personalized advice.",
+            "Check your .env file for GOOGLE_API_KEY configuration."
         ]
+    
+    # Get greeting name (Default to 'Friend' if None)
+    greeting_name = farmer_name if farmer_name and str(farmer_name).lower() != 'nan' else "Friend"
     
     # Create prompt template
     prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are a helpful farming advisor speaking to farmers with basic education.
+        ("system", f"""You are a helpful farming advisor speaking to a farmer named {greeting_name}.
 
 Rules:
+- ALWAYS start your response with a standalone greeting line: "Hello {greeting_name}!"
+- Then provide 3-4 simple, actionable tips
 - Use SIMPLE words (like you're talking to a 12-year-old)
-- NO technical jargon or abbreviations
-- Give 3-4 specific, actionable tips they can do THIS SEASON
-- Be encouraging and positive
-- Use actual numbers from their farm data
-- Focus on practical steps, not theory
-- Each tip should be 1-2 short sentences
+- NO technical jargon
+- Use actual numbers from their farm data where possible
+- Address them as "you"
 
-Examples of GOOD advice:
-✓ "Your fertilizer use is high. Try using 10 bags less next month - you'll save money and help the soil."
-✓ "Great safety record! Keep having your morning team meetings."
-✓ "Farms with more women workers earn 15% more. Consider hiring 2-3 more women for harvest season."
-
-Examples of BAD advice:
-✗ "Optimize your nitrogen input to reduce your carbon footprint"
-✗ "Implement ESG best practices"
-✗ "Your emissions per tonne are suboptimal"
+Example Output Format:
+Hello {greeting_name}!
+Try using 10 bags less fertilizer next month to save money.
+Consider hiring 2 more women for the harvest season.
+Great safety record! Keep it up.
 """),
         
         ("user", """Farm Data:
 - Overall Score: {esg_score}/100
-- Environment Score: {e_score}/100 (pollution, fertilizer, water)
-- Social Score: {s_score}/100 (workers, safety)
-- Pollution: {emissions} kg per hectare
-- Crop Yield: {yield_val} tonnes per hectare  
-- Women Workers: {female_pct}%
-- Accidents: {accidents} per 100 workers
+- Environment Score: {e_score}/100 
+- Social Score: {s_score}/100
+- Pollution: {emissions} kg/ha
+- Accidents: {accidents}
 
-Give me 3-4 simple actions to improve my farm this season.""")
+Give me my personal advice list.""")
     ])
     
     try:
         # Initialize LLM
         llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash",
+            model="gemini-2.0-flash", 
             temperature=0.7,
             google_api_key=api_key
         )
@@ -82,30 +79,35 @@ Give me 3-4 simple actions to improve my farm this season.""")
             "e_score": round(e_score, 0),
             "s_score": round(s_score, 0),
             "emissions": round(emissions_per_ha, 1),
-            "yield_val": round(yield_per_ha, 1),
-            "female_pct": round(female_share * 100, 0),
             "accidents": round(accidents, 1)
         })
         
         # Parse response into list
         content = response.content.strip()
         
-        # Split by common delimiters
+        # Split by newlines
         insights = []
         for line in content.split('\n'):
             line = line.strip()
-            # Remove bullet points, numbers, etc.
-            line = line.lstrip('•-*123456789. ')
-            if line and len(line) > 20:  # Filter out empty or too-short lines
-                insights.append(line)
+            # Remove bullet points but keep text
+            clean_line = line.lstrip('•-*123456789. ')
+            
+            # --- THE FIX IS HERE ---
+            # Check if line is a greeting
+            is_greeting = clean_line.lower().startswith(('hello', 'hi ', 'dear', 'greetings'))
+            
+            # Keep if it is a greeting OR if it is long enough (lowered to 10 chars)
+            if clean_line and (len(clean_line) > 10 or is_greeting):
+                insights.append(clean_line)
         
-        # Return first 3-4 insights
-        return insights[:4] if insights else ["Unable to generate insights. Please try again."]
+        if insights:
+            return insights[:4]
+        else:
+            return [f"Hello {greeting_name}! I couldn't generate specific tips right now."]
     
     except Exception as e:
-        # Fallback insights if AI fails
         return [
-            f"⚠️ AI service temporarily unavailable.",
-            f"Your overall score is {round(esg_score, 0)}/100.",
-            "Try uploading your data again or contact support."
+            f"Hello {greeting_name}!",
+            f"System is busy. Your score is {round(esg_score, 0)}/100.",
+            "Please try refreshing the page."
         ]

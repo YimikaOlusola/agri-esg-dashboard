@@ -1,14 +1,11 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-from dotenv import load_dotenv
-import os
 import time
+from dotenv import load_dotenv
 
 from utils.calculations import (
     compute_kpis, 
     aggregate_to_farm_level,
-    merge_optional_data,
     compute_esg_scores
 )
 from utils.ai_insights import generate_ai_insights
@@ -31,28 +28,40 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Load CSS (same as before)
+# Load CSS - INLINE VERSION
 def load_css():
     st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
     
+    :root {
+        --color-green-dark: #2d5016;
+        --color-green-medium: #4a7c29;
+        --color-green-light: #6b9e47;
+        --color-green-bg: #e8f5e9;
+        --color-brown-dark: #5d4037;
+        --color-brown-medium: #8d6e63;
+        --color-beige: #f5f1ed;
+        --color-yellow: #f9a825;
+        --color-amber: #fbc02d;
+    }
+    
     html, body, [class*="css"] {
         font-family: 'Inter', sans-serif;
-        background-color: #f8f9fa;
+        background-color: var(--color-beige) !important;
     }
     
     .main-title {
         font-size: 42px;
         font-weight: 700;
-        color: #2c5f2d;
+        color: var(--color-green-dark);
         text-align: center;
         margin-bottom: 5px;
     }
     
     .subtitle {
         font-size: 18px;
-        color: #666;
+        color: var(--color-brown-medium);
         text-align: center;
         margin-bottom: 30px;
     }
@@ -60,20 +69,102 @@ def load_css():
     .section-title {
         font-size: 26px;
         font-weight: 600;
-        color: #2c5f2d;
+        color: var(--color-green-dark);
         margin: 25px 0 15px 0;
         padding-left: 10px;
-        border-left: 5px solid #28a745;
+        border-left: 5px solid var(--color-green-medium);
+    }
+    
+    .hero-section {
+        background: linear-gradient(135deg, var(--color-green-bg) 0%, #c8e6c9 100%);
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 4px 15px rgba(45, 80, 22, 0.15);
+        text-align: center;
+        margin-bottom: 20px;
+        width: 100%;
+    }
+    
+    .hero-section > div {
+        width: 100%;
+    }
+                
+    .hero-top-cap {
+        max-width: 650px; 
+        margin: 0 auto;   
+        border-top-left-radius: 20px;
+        border-top-right-radius: 20px;
+        height: 120px; 
+        margin-bottom: -90px; 
+        position: relative;
+        z-index: 0;
+        padding-top: 20px;
+        text-align: center;
+    }
+
+    .hero-bottom-cap {
+        max-width: 650px; /* MATCHES CHART WIDTH */
+        margin: -30px auto 0 auto; /* CENTERS IT */
+        border-bottom-left-radius: 20px;
+        border-bottom-right-radius: 20px;
+        padding: 0px 30px 30px 30px;
+        text-align: center;
+        position: relative;
+        z-index: 2;
+    }
+    
+   div[data-testid="stPlotlyChart"] {
+        width: 100%;
+        display: flex;            /* Use flexbox layout */
+        justify-content: center;  /* Horizontally center the chart */
+        align-items: center;      /* Vertically center */
+    }         
+    
+    .score-message {
+        font-size: 22px;
+        font-weight: 600;
+        margin-top: 15px;
+        color: var(--color-brown-dark);
+    }
+    
+    .esg-component-card {
+        background: white;
+        border-radius: 12px;
+        padding: 15px;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        margin: 10px 5px;
+    }
+    
+    .esg-component-icon {
+        font-size: 28px;
+        margin-bottom: 5px;
+    }
+    
+    .esg-component-label {
+        font-size: 12px;
+        color: #757575;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 5px;
+        font-weight: 600;
+    }
+    
+    .esg-component-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--color-brown-dark);
+        margin-bottom: 8px;
     }
     
     .metric-card {
         background: white;
         border-radius: 15px;
-        padding: 25px;
+        padding: 25px 20px;
         box-shadow: 0 2px 10px rgba(0,0,0,0.08);
         text-align: center;
         transition: transform 0.2s;
-        height: 200px;
+        height: 240px;
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -92,8 +183,8 @@ def load_css():
     }
     
     .metric-title {
-        font-size: 15px;
-        color: #666;
+        font-size: 13px;
+        color: #757575;
         text-transform: uppercase;
         letter-spacing: 1px;
         margin-bottom: 10px;
@@ -103,7 +194,7 @@ def load_css():
     .metric-value {
         font-size: 36px;
         font-weight: 700;
-        color: #333;
+        color: var(--color-brown-dark);
         margin-bottom: 8px;
         line-height: 1;
     }
@@ -113,72 +204,104 @@ def load_css():
         font-weight: 600;
         padding: 5px 15px;
         border-radius: 20px;
+        margin-bottom: 10px;
     }
     
-    .insight-card {
-        background: white;
-        border-left: 5px solid #ffc107;
+    .status-excellent {
+        color: var(--color-green-dark);
+        background: var(--color-green-bg);
+    }
+    
+    .status-good {
+        color: var(--color-yellow);
+        background: #fff9e6;
+    }
+    
+    .status-needs-work {
+        color: #c62828;
+        background: #ffebee;
+    }
+    
+    .status-neutral {
+        color: var(--color-brown-medium);
+        background: #f5f5f5;
+    }
+    
+    .progress-bar-container {
+        width: 100%;
+        height: 8px;
+        background: #e0e0e0;
         border-radius: 10px;
-        padding: 20px 25px;
-        margin: 15px 0;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        display: flex;
-        align-items: flex-start;
-        transition: transform 0.2s;
+        overflow: hidden;
+        margin-top: 10px;
     }
     
-    .insight-card:hover {
-        transform: translateX(5px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    .progress-bar-fill {
+        height: 100%;
+        border-radius: 10px;
+        transition: width 0.5s ease-in-out;
     }
     
-    .insight-number {
-        background: #ffc107;
-        color: white;
-        font-size: 20px;
-        font-weight: 700;
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 20px;
-        flex-shrink: 0;
+    .progress-bar-green {
+        background: linear-gradient(90deg, var(--color-green-medium), var(--color-green-light));
     }
     
-    .insight-text {
-        font-size: 17px;
-        line-height: 1.6;
-        color: #333;
-        flex-grow: 1;
+    .progress-bar-yellow {
+        background: linear-gradient(90deg, var(--color-yellow), var(--color-amber));
     }
     
-    .hero-section {
-        background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
-        border-radius: 20px;
+    .progress-bar-red {
+        background: linear-gradient(90deg, #c62828, #d84315);
+    }
+    
+    .progress-bar-neutral {
+        background: linear-gradient(90deg, var(--color-brown-medium), #a1887f);
+    }
+    
+    .insights-container {
+        background: white !important;
+        border-radius: 15px;
         padding: 30px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        text-align: center;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        border-left: 5px solid #4a7c29;
         margin-bottom: 20px;
     }
     
-    .score-message {
-        font-size: 22px;
-        font-weight: 600;
-        margin-top: 15px;
+    .insight-item {
+        padding: 12px 0;
+        margin-bottom: 12px;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 16px;
+        line-height: 1.6;
+        color: #5d4037 !important;
+    }
+    
+    .insight-item:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+    }
+    
+    .insight-item p {
+        color: #5d4037 !important;
+        margin: 0 !important;
+    }
+    
+    .stButton>button[kind="primary"] {
+        background: linear-gradient(135deg, var(--color-green-medium), var(--color-green-light)) !important;
+        color: white !important;
+        border: none !important;
     }
     
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    header {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
 load_css()
 
-# DEFINE REQUIRED AND OPTIONAL COLUMNS
+# REQUIRED AND OPTIONAL COLUMNS
 REQUIRED_COLUMNS = {
+    'farmer_name': 'Farmer Name',
     'farm_id': 'Farm ID',
     'farm_name': 'Farm Name',
     'year': 'Year',
@@ -204,24 +327,55 @@ REQUIRED_COLUMNS = {
 OPTIONAL_COLUMNS = {
     'soil_organic_matter_pct': 'Soil Organic Matter (%)',
     'soil_ph': 'Soil pH',
-    'bulk_density_g_cm3': 'Bulk Density (g/cm³)',
-    'soil_test_date': 'Soil Test Date',
     'cover_crop_planted_yes_no': 'Cover Crop Planted (yes/no)',
-    'cover_crop_species': 'Cover Crop Species',
-    'cover_crop_coverage_pct': 'Cover Crop Coverage (%)',
     'hedgerow_length_m': 'Hedgerow Length (meters)',
     'wildflower_area_ha': 'Wildflower Area (hectares)',
     'buffer_strip_area_ha': 'Buffer Strip Area (hectares)',
     'trees_planted_count': 'Trees Planted Count',
-    'bare_soil_days_estimate': 'Bare Soil Days Estimate',
-    'manure_or_compost_kg_per_ha': 'Manure/Compost (kg/ha)',
     'reduced_tillage_yes_no': 'Reduced Tillage (yes/no)',
     'integrated_pest_management_yes_no': 'Integrated Pest Management (yes/no)',
     'water_volume_m3': 'Water Volume (m³)',
-    'biodiversity_notes': 'Biodiversity Notes',
     'labour_hs_training_done_yes_no': 'Health & Safety Training (yes/no)',
     'worker_contracts_formalised_yes_no': 'Worker Contracts Formalized (yes/no)'
 }
+
+# Helper function for progress bars
+def create_progress_bar(value, max_value=100, status="neutral"):
+    """Create HTML progress bar"""
+    percentage = min((value / max_value) * 100, 100) if max_value > 0 else 0
+    
+    if status == "excellent":
+        color_class = "progress-bar-green"
+    elif status == "good":
+        color_class = "progress-bar-yellow"
+    elif status == "needs-work":
+        color_class = "progress-bar-red"
+    else:
+        color_class = "progress-bar-neutral"
+    
+    return f"""
+    <div class="progress-bar-container">
+        <div class="progress-bar-fill {color_class}" style="width: {percentage}%"></div>
+    </div>
+    """
+
+# Helper function to get status info
+def get_status_info(value, thresholds, lower_is_better=False):
+    """Return status text, CSS class, emoji, and normalized score"""
+    if lower_is_better:
+        if value <= thresholds['excellent']:
+            return "Excellent", "status-excellent", "✅", 90
+        elif value <= thresholds['good']:
+            return "Good", "status-good", "⚠️", 65
+        else:
+            return "Needs Work", "status-needs-work", "❌", 35
+    else:
+        if value >= thresholds['excellent']:
+            return "Excellent", "status-excellent", "✅", 90
+        elif value >= thresholds['good']:
+            return "Good", "status-good", "⚠️", 65
+        else:
+            return "Needs Work", "status-needs-work", "❌", 35
 
 @st.cache_data(ttl=1800)
 def load_and_process_data(file_bytes):
@@ -249,7 +403,7 @@ with st.sidebar:
     
     st.markdown("---")
 
-# Welcome screen if no file
+# Welcome screen
 if uploaded_file is None:
     st.info("👋 **Welcome!** Upload your farm data CSV to get started.")
     
@@ -280,7 +434,6 @@ if uploaded_file is None:
     st.markdown("---")
     st.markdown("### 📥 Download CSV Template")
     
-    # Template with REQUIRED columns only
     template_data = {
         'farm_id': ['FARM-001', 'FARM-001'],
         'farm_name': ['Green Valley Farm', 'Green Valley Farm'],
@@ -322,27 +475,13 @@ if uploaded_file is None:
     
     with st.expander("📚 See All Column Details (Required + Optional)"):
         st.markdown("### ✅ Required Columns")
-        st.markdown("These columns **must** be in your CSV file:")
-        
         for col, desc in REQUIRED_COLUMNS.items():
             st.markdown(f"- **`{col}`**: {desc}")
         
         st.markdown("---")
         st.markdown("### 🌟 Optional Columns (for Better Scoring)")
-        st.markdown("Add these to get higher ESG scores and richer insights:")
-        
         for col, desc in OPTIONAL_COLUMNS.items():
             st.markdown(f"- **`{col}`**: {desc}")
-        
-        st.markdown("---")
-        st.markdown("""
-        #### 💡 Tips
-        - All column names must be **lowercase with underscores**
-        - Use `yes` or `no` for yes/no fields (not 1/0 or True/False)
-        - Leave cells empty if you don't have data (don't use 0)
-        - Each row = one field for one month
-        - Save as **CSV format** (not Excel .xlsx)
-        """)
     
     st.stop()
 
@@ -352,7 +491,7 @@ file_bytes = uploaded_file.getvalue()
 try:
     raw_df = pd.read_csv(pd.io.common.BytesIO(file_bytes))
     
-    # CHECK REQUIRED COLUMNS ONLY
+    # Check required columns
     missing_required = [
         REQUIRED_COLUMNS[col] for col in REQUIRED_COLUMNS.keys() 
         if col not in raw_df.columns
@@ -371,44 +510,9 @@ try:
                 status = "✅" if col in raw_df.columns else "❌"
                 st.markdown(f"{status} **`{col}`**: {desc}")
         
-        with st.expander("📥 Download template with correct structure"):
-            template_data = {
-                'farm_id': ['FARM-001'],
-                'farm_name': ['Example Farm'],
-                'year': [2025],
-                'month': ['2025-03'],
-                'field_id': ['FIELD-001'],
-                'field_name': ['North Field'],
-                'field_area_ha': [15.0],
-                'crop_type': ['Spring Barley'],
-                'soil_type': ['Sandy loam'],
-                'fertiliser_kgN': [25],
-                'fertiliser_kgP2O5': [5],
-                'fertiliser_kgK2O': [8],
-                'pesticide_applied_yes_no': ['yes'],
-                'diesel_litres': [120],
-                'irrigation_applied_yes_no': ['no'],
-                'labour_hours': [18],
-                'livestock_present_yes_no': ['no'],
-                'sfi_soil_standard_yes_no': ['yes'],
-                'sfi_nutrient_management_yes_no': ['yes'],
-                'sfi_hedgerows_yes_no': ['no']
-            }
-            
-            template_df = pd.DataFrame(template_data)
-            csv_template = template_df.to_csv(index=False)
-            
-            st.download_button(
-                label="📥 Download Correct Template",
-                data=csv_template,
-                file_name="farm_basic_inputs_template.csv",
-                mime="text/csv",
-                use_container_width=True
-            )
-        
         st.stop()
     
-    # CHECK OPTIONAL COLUMNS (just inform, don't block)
+    # Check optional columns
     present_optional = [
         OPTIONAL_COLUMNS[col] for col in OPTIONAL_COLUMNS.keys() 
         if col in raw_df.columns
@@ -416,9 +520,6 @@ try:
     
     if present_optional:
         st.success(f"✅ Found {len(present_optional)} optional fields - your ESG score will be more accurate!")
-        with st.expander(f"🌟 Optional fields detected ({len(present_optional)})"):
-            for col in present_optional:
-                st.markdown(f"- ✅ {col}")
     else:
         st.info("💡 **Tip:** Add optional fields like soil health and biodiversity data to improve your ESG score!")
     
@@ -441,7 +542,6 @@ except pd.errors.ParserError:
     We couldn't read your file. Please make sure:
     - Your file is saved as **CSV format** (not Excel .xlsx)
     - Your data is separated by commas
-    - There are no special characters in column names
     """)
     st.stop()
 
@@ -470,15 +570,13 @@ with st.sidebar:
     st.markdown("### 🔍 Filters")
     
     years = sorted(esg_df['year'].dropna().unique().tolist())
-    
-    # Farm selection
     farms = sorted(esg_df['farm_id'].dropna().unique().tolist())
+    
     if len(farms) > 1:
         selected_farm = st.selectbox("🏡 Your Farm", farms)
     else:
         selected_farm = farms[0]
     
-    # Year selection
     view_mode = st.radio(
         "📅 View Mode",
         ["Current Year Snapshot", "Multi-Year Progress"],
@@ -519,31 +617,92 @@ else:
 
 # === HERO SECTION ===
 st.markdown("---")
+
+gauge_fig = create_gauge_chart(
+    value=my_farm['esg_score'],
+    title=f"Your Farm ESG Score ({current_year})"
+)
+
+gauge_fig.update_layout(
+    paper_bgcolor='rgba(0,0,0,0)',
+    plot_bgcolor='rgba(0,0,0,0)',
+    # 1. FIX LABELS: Increased margins (l/r/b) so 0 and 100 are not cut off
+    margin=dict(l=50, r=50, t=50, b=50),
+    width=600, 
+    height=300
+)
+
 col_left, col_center, col_right = st.columns([1, 2, 1])
 
 with col_center:
-    st.markdown('<div class="hero-section">', unsafe_allow_html=True)
-    
-    gauge_fig = create_gauge_chart(
-        value=my_farm['esg_score'],
-        title=f"Your Farm ESG Score ({current_year})"
+    st.plotly_chart(
+        gauge_fig, 
+        use_container_width=True, # This allows it to fill the center column nicely
+        config={'displayModeBar': False}
     )
-    st.plotly_chart(gauge_fig, use_container_width=True, config={'displayModeBar': False})
-    
-    score = my_farm['esg_score']
-    if score >= 70:
-        message = "🎉 Excellent! You're a leader in sustainable farming."
-        color = "#28a745"
-    elif score >= 50:
-        message = "👍 Good work! A few improvements will boost your score."
-        color = "#ffc107"
-    else:
-        message = "💪 Let's improve your farming practices together."
-        color = "#dc3545"
-    
-    st.markdown(f'<p class="score-message" style="color: {color}">{message}</p>', 
-                unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+
+score = my_farm['esg_score']
+
+score = my_farm['esg_score']
+if score >= 70:
+    message = "🎉 Excellent! You're a leader in sustainable farming."
+    color = "#2d5016"
+elif score >= 50:
+    message = "👍 Good work! A few improvements will boost your score."
+    color = "#c9800b"
+else:
+    message = "💪 Let's improve your farming practices together."
+    color = "#c62828"
+
+# We apply the hero-section style just to the text message now
+st.markdown(f'''
+<div class="hero-section">
+    <p class="score-message" style="color: {color}; margin: 0;">{message}</p>
+</div>
+''', unsafe_allow_html=True)
+
+# ESG COMPONENT BREAKDOWN
+st.markdown("---")
+comp_col1, comp_col2, comp_col3 = st.columns(3)
+
+with comp_col1:
+    e_score = my_farm['e_score']
+    e_status = "excellent" if e_score >= 70 else "good" if e_score >= 50 else "needs-work"
+    progress_html = create_progress_bar(e_score, 100, e_status)
+    st.markdown(f'''
+    <div class="esg-component-card">
+        <div class="esg-component-icon">🌍</div>
+        <div class="esg-component-label">Environment</div>
+        <div class="esg-component-value">{e_score:.0f}%</div>
+        {progress_html}
+    </div>
+    ''', unsafe_allow_html=True)
+
+with comp_col2:
+    s_score = my_farm['s_score']
+    s_status = "excellent" if s_score >= 70 else "good" if s_score >= 50 else "needs-work"
+    progress_html = create_progress_bar(s_score, 100, s_status)
+    st.markdown(f'''
+    <div class="esg-component-card">
+        <div class="esg-component-icon">👥</div>
+        <div class="esg-component-label">Social</div>
+        <div class="esg-component-value">{s_score:.0f}%</div>
+        {progress_html}
+    </div>
+    ''', unsafe_allow_html=True)
+
+with comp_col3:
+    g_score = my_farm['g_score']
+    g_status = "excellent" if g_score >= 70 else "good" if g_score >= 50 else "needs-work"
+    progress_html = create_progress_bar(g_score, 100, g_status)
+    st.markdown(f'''
+    <div class="esg-component-card">
+        <div class="esg-component-icon">📋</div>
+        <div class="esg-component-label">Governance</div>
+        <div class="esg-component-value">{g_score:.0f}%</div>
+        {progress_html}
+    </div>
+    ''', unsafe_allow_html=True)
 
 st.markdown("---")
 
@@ -562,68 +721,56 @@ sfi_compliance = (
     my_farm['sfi_hedgerow_compliance_rate']
 ) / 3 * 100
 
-def get_status(value, thresholds, lower_is_better=False):
-    if lower_is_better:
-        if value <= thresholds['good']:
-            return ("Excellent", "#28a745", "✅")
-        elif value <= thresholds['ok']:
-            return ("Good", "#ffc107", "⚠️")
-        else:
-            return ("Needs Work", "#dc3545", "❌")
-    else:
-        if value >= thresholds['good']:
-            return ("Excellent", "#28a745", "✅")
-        elif value >= thresholds['ok']:
-            return ("Good", "#ffc107", "⚠️")
-        else:
-            return ("Needs Work", "#dc3545", "❌")
-
 with col1:
     st.markdown(f'''
-    <div class="metric-card" style="border-left: 5px solid #28a745;">
+    <div class="metric-card" style="border-left: 5px solid #4a7c29;">
         <div class="metric-icon">🌾</div>
         <div class="metric-title">Total Farm Area</div>
         <div class="metric-value">{total_area:.1f} ha</div>
-        <div class="metric-status" style="color: #28a745;">✅ Tracked</div>
+        <div class="metric-status status-neutral">✅ Tracked</div>
+        {create_progress_bar(100, 100, "neutral")}
     </div>
     ''', unsafe_allow_html=True)
 
 with col2:
-    emission_status, emission_color, emission_emoji = get_status(
-        emissions_per_ha, {'good': 30, 'ok': 50}, lower_is_better=True
+    status_text, status_class, emoji, norm_score = get_status_info(
+        emissions_per_ha, {'excellent': 30, 'good': 50}, lower_is_better=True
     )
     st.markdown(f'''
-    <div class="metric-card" style="border-left: 5px solid {emission_color};">
+    <div class="metric-card" style="border-left: 5px solid {'#4a7c29' if status_class == 'status-excellent' else '#f9a825' if status_class == 'status-good' else '#c62828'};">
         <div class="metric-icon">🌫️</div>
         <div class="metric-title">Emissions</div>
         <div class="metric-value">{emissions_per_ha:.0f} kg/ha</div>
-        <div class="metric-status" style="color: {emission_color};">{emission_emoji} {emission_status}</div>
+        <div class="metric-status {status_class}">{emoji} {status_text}</div>
+        {create_progress_bar(norm_score, 100, status_text.lower().replace(' ', '-'))}
     </div>
     ''', unsafe_allow_html=True)
 
 with col3:
-    nitrogen_status, nitrogen_color, nitrogen_emoji = get_status(
-        n_per_ha, {'good': 50, 'ok': 100}, lower_is_better=True
+    status_text, status_class, emoji, norm_score = get_status_info(
+        n_per_ha, {'excellent': 50, 'good': 100}, lower_is_better=True
     )
     st.markdown(f'''
-    <div class="metric-card" style="border-left: 5px solid {nitrogen_color};">
+    <div class="metric-card" style="border-left: 5px solid {'#4a7c29' if status_class == 'status-excellent' else '#f9a825' if status_class == 'status-good' else '#c62828'};">
         <div class="metric-icon">🧪</div>
         <div class="metric-title">Nitrogen Use</div>
         <div class="metric-value">{n_per_ha:.0f} kg/ha</div>
-        <div class="metric-status" style="color: {nitrogen_color};">{nitrogen_emoji} {nitrogen_status}</div>
+        <div class="metric-status {status_class}">{emoji} {status_text}</div>
+        {create_progress_bar(norm_score, 100, status_text.lower().replace(' ', '-'))}
     </div>
     ''', unsafe_allow_html=True)
 
 with col4:
-    sfi_status, sfi_color, sfi_emoji = get_status(
-        sfi_compliance, {'good': 80, 'ok': 50}
+    status_text, status_class, emoji, norm_score = get_status_info(
+        sfi_compliance, {'excellent': 80, 'good': 50}
     )
     st.markdown(f'''
-    <div class="metric-card" style="border-left: 5px solid {sfi_color};">
+    <div class="metric-card" style="border-left: 5px solid {'#4a7c29' if status_class == 'status-excellent' else '#f9a825' if status_class == 'status-good' else '#c62828'};">
         <div class="metric-icon">📋</div>
         <div class="metric-title">SFI Compliance</div>
         <div class="metric-value">{sfi_compliance:.0f}%</div>
-        <div class="metric-status" style="color: {sfi_color};">{sfi_emoji} {sfi_status}</div>
+        <div class="metric-status {status_class}">{emoji} {status_text}</div>
+        {create_progress_bar(sfi_compliance, 100, status_text.lower().replace(' ', '-'))}
     </div>
     ''', unsafe_allow_html=True)
 
@@ -632,26 +779,42 @@ st.markdown("---")
 # === AI INSIGHTS ===
 st.markdown('<h2 class="section-title">💡 What You Can Do This Season</h2>', unsafe_allow_html=True)
 
-with st.spinner("🤖 Generating personalized advice..."):
+# ---------------- START OF FIX ----------------
+# 1. Try to get name from the aggregated row
+farmer_name = my_farm.get('farmer_name', None)
+
+# 2. If missing (lost during aggregation), look it up in the raw dataframe
+if not farmer_name or pd.isna(farmer_name):
+    # Filter the original dataframe for this specific farm
+    # We look at the 'df' variable which exists before aggregation
+    name_lookup = df[df['farm_id'] == selected_farm]['farmer_name'].dropna().unique()
+    
+    if len(name_lookup) > 0:
+        farmer_name = str(name_lookup[0])
+    else:
+        farmer_name = "Farmer" # Fallback if absolutely no name found
+# ---------------- END OF FIX ----------------
+
+with st.spinner(f"🤖 Generating advice for {farmer_name}..."):
     insights = generate_ai_insights(
         esg_score=my_farm['esg_score'],
         e_score=my_farm['e_score'],
         s_score=my_farm['s_score'],
         emissions_per_ha=emissions_per_ha,
-        emissions_per_tonne=0,  # Not available
-        yield_per_ha=0,  # Not available
-        female_share=0,  # Not available
-        accidents=0,  # Not available
-        farm_id=selected_farm
+        emissions_per_tonne=0,
+        yield_per_ha=0,
+        female_share=0,
+        accidents=0,
+        farm_id=selected_farm,
+        farmer_name=farmer_name # Pass the retrieved name here
     )
 
-for i, insight in enumerate(insights, 1):
-    st.markdown(f'''
-    <div class="insight-card">
-        <span class="insight-number">{i}</span>
-        <span class="insight-text">{insight}</span>
-    </div>
-    ''', unsafe_allow_html=True)
+insights_html = '<div class="insights-container">'
+for insight in insights:
+    insights_html += f'<div class="insight-item"><p>{insight}</p></div>'
+insights_html += '</div>'
+
+st.markdown(insights_html, unsafe_allow_html=True)
 
 st.markdown("---")
 
@@ -670,13 +833,13 @@ with tab1:
             s_score=my_farm['s_score'],
             g_score=my_farm['g_score']
         )
-        st.plotly_chart(pie_fig, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(pie_fig, width='stretch', config={'displayModeBar': False})
     
     with col2:
         st.markdown("### Farm Performance Comparison")
         all_farms = esg_df[esg_df['year'] == current_year]
         comparison_fig = create_comparison_bar(my_farm, all_farms)
-        st.plotly_chart(comparison_fig, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(comparison_fig, width='stretch', config={'displayModeBar': False})
 
 with tab2:
     col1, col2 = st.columns([2, 1])
@@ -688,7 +851,7 @@ with tab2:
             diesel=my_farm['emissions_diesel'],
             electricity=0
         )
-        st.plotly_chart(donut_fig, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(donut_fig, width='stretch', config={'displayModeBar': False})
     
     with col2:
         st.markdown("### Key Numbers")
@@ -710,20 +873,66 @@ with tab3:
         
         if len(historical_data) > 1:
             progress_fig = create_progress_line_chart(historical_data)
-            st.plotly_chart(progress_fig, use_container_width=True, config={'displayModeBar': False})
+            st.plotly_chart(progress_fig, width='stretch', config={'displayModeBar': False})
+        else:
+            st.info("Need at least 2 years of data to show progress.")
     else:
         st.info("📊 Switch to 'Multi-Year Progress' mode to see trends!")
 
 st.markdown("---")
 
 # === EXPORT ===
-col1, col2, col3 = st.columns([1, 2, 1])
+st.markdown('<h2 class="section-title">📥 Download Your Report</h2>', unsafe_allow_html=True)
+
+col1, col2 = st.columns(2)
+
+with col1:
+    if st.button("📄 Download PDF Report", type="primary", use_container_width=True):
+        with st.spinner("🔄 Generating PDF..."):
+            from utils.pdf_report import generate_pdf_report
+            
+            # Get current line chart if multi-year
+            line_fig_for_pdf = None
+            if view_mode == "Multi-Year Progress" and len(selected_years) > 1:
+                historical_data = []
+                for year in sorted(selected_years):
+                    year_data = filtered_esg[filtered_esg['year'] == year]
+                    if not year_data.empty:
+                        historical_data.append({
+                            'year': year,
+                            'esg_score': year_data.iloc[0]['esg_score']
+                        })
+                
+                if len(historical_data) > 1:
+                    line_fig_for_pdf = create_progress_line_chart(historical_data)
+            
+            # Generate PDF
+            pdf_buffer = generate_pdf_report(
+                farm_data=my_farm,
+                farmer_name=my_farm.get('farmer_name', 'Valued Farmer'),
+                year=current_year,
+                insights_list=insights,
+                gauge_fig=gauge_fig,
+                pie_fig=pie_fig,
+                donut_fig=donut_fig,
+                bar_fig=comparison_fig,
+                line_fig=line_fig_for_pdf
+            )
+            
+            st.download_button(
+                label="💾 Download PDF",
+                data=pdf_buffer,
+                file_name=f"farm_{selected_farm}_esg_report_{current_year}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
 
 with col2:
-    if st.button("📥 Download My Farm Report", type="primary", use_container_width=True):
+    if st.button("📊 Download CSV Report", type="primary", use_container_width=True):
         report_data = {
             'Farm ID': [selected_farm],
             'Farm Name': [my_farm['farm_name']],
+            'Farmer Name': [my_farm.get('farmer_name', 'N/A')],
             'Year': [current_year],
             'ESG Score': [my_farm['esg_score']],
             'Environment Score': [my_farm['e_score']],
@@ -739,13 +948,9 @@ with col2:
         csv = report_df.to_csv(index=False)
         
         st.download_button(
-            label="💾 Download CSV Report",
+            label="💾 Download CSV",
             data=csv,
             file_name=f"farm_{selected_farm}_report_{current_year}.csv",
             mime="text/csv",
             use_container_width=True
         )
-
-st.markdown("---")
-st.markdown('<p style="text-align: center; color: #999; font-size: 14px;">Made with 🌱 for farmers | AgriESG Dashboard © 2025</p>', 
-            unsafe_allow_html=True)

@@ -7,7 +7,7 @@ EF_DIESEL = 2.7  # kg CO2e per litre diesel
 
 def compute_kpis(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Compute KPIs at field-month level, then aggregate to farm-year level.
+    Compute KPIs at field-month level.
     Handles UK agricultural data with SFI compliance.
     """
     df = df.copy()
@@ -45,16 +45,30 @@ def compute_kpis(df: pd.DataFrame) -> pd.DataFrame:
         if col in df.columns:
             df[col + '_binary'] = df[col].str.lower().isin(['yes', 'true', '1']).astype(int)
     
+    # Process optional columns if present
+    optional_yes_no_cols = [
+        'cover_crop_planted_yes_no',
+        'reduced_tillage_yes_no',
+        'integrated_pest_management_yes_no',
+        'labour_hs_training_done_yes_no',
+        'worker_contracts_formalised_yes_no'
+    ]
+    
+    for col in optional_yes_no_cols:
+        if col in df.columns:
+            df[col + '_binary'] = df[col].str.lower().isin(['yes', 'true', '1']).astype(int)
+    
     return df
 
 def aggregate_to_farm_level(df: pd.DataFrame) -> pd.DataFrame:
     """
     Aggregate field-level data to farm-year level for ESG scoring.
+    Includes optional columns if present.
     """
-    # Group by farm and year
-    grouped = df.groupby(['farm_id', 'farm_name', 'year']).agg({
+    # Base aggregation dictionary
+    agg_dict = {
         # Area metrics
-        'field_area_ha': 'sum',  # Total farm area
+        'field_area_ha': 'sum',
         
         # Intensity metrics (weighted by area)
         'n_per_ha': 'mean',
@@ -77,10 +91,41 @@ def aggregate_to_farm_level(df: pd.DataFrame) -> pd.DataFrame:
         'sfi_soil_standard_yes_no_binary': 'mean',
         'sfi_nutrient_management_yes_no_binary': 'mean',
         'sfi_hedgerows_yes_no_binary': 'mean',
-    })
+    }
+    
+    # Add optional columns to aggregation if they exist
+    optional_numeric_cols = {
+        'soil_organic_matter_pct': 'mean',
+        'soil_ph': 'mean',
+        'hedgerow_length_m': 'sum',
+        'wildflower_area_ha': 'sum',
+        'buffer_strip_area_ha': 'sum',
+        'trees_planted_count': 'sum',
+        'water_volume_m3': 'sum',
+    }
+    
+    optional_binary_cols = [
+        'cover_crop_planted_yes_no_binary',
+        'reduced_tillage_yes_no_binary',
+        'integrated_pest_management_yes_no_binary',
+        'labour_hs_training_done_yes_no_binary',
+        'worker_contracts_formalised_yes_no_binary'
+    ]
+    
+    # Add to aggregation dict if columns exist
+    for col, func in optional_numeric_cols.items():
+        if col in df.columns:
+            agg_dict[col] = func
+    
+    for col in optional_binary_cols:
+        if col in df.columns:
+            agg_dict[col] = 'mean'
+    
+    # Group by farm and year
+    grouped = df.groupby(['farm_id', 'farm_name', 'year']).agg(agg_dict)
     
     # Rename for clarity
-    grouped = grouped.rename(columns={
+    rename_dict = {
         'field_area_ha': 'total_farm_area_ha',
         'pesticide_applied_yes_no_binary': 'pesticide_use_rate',
         'irrigation_applied_yes_no_binary': 'irrigation_rate',
@@ -88,37 +133,23 @@ def aggregate_to_farm_level(df: pd.DataFrame) -> pd.DataFrame:
         'sfi_soil_standard_yes_no_binary': 'sfi_soil_compliance_rate',
         'sfi_nutrient_management_yes_no_binary': 'sfi_nutrient_compliance_rate',
         'sfi_hedgerows_yes_no_binary': 'sfi_hedgerow_compliance_rate',
-    })
+    }
+    
+    # Rename optional columns
+    if 'cover_crop_planted_yes_no_binary' in grouped.columns:
+        rename_dict['cover_crop_planted_yes_no_binary'] = 'cover_crop_rate'
+    if 'reduced_tillage_yes_no_binary' in grouped.columns:
+        rename_dict['reduced_tillage_yes_no_binary'] = 'reduced_tillage_rate'
+    if 'integrated_pest_management_yes_no_binary' in grouped.columns:
+        rename_dict['integrated_pest_management_yes_no_binary'] = 'ipm_rate'
+    if 'labour_hs_training_done_yes_no_binary' in grouped.columns:
+        rename_dict['labour_hs_training_done_yes_no_binary'] = 'safety_training_rate'
+    if 'worker_contracts_formalised_yes_no_binary' in grouped.columns:
+        rename_dict['worker_contracts_formalised_yes_no_binary'] = 'contract_rate'
+    
+    grouped = grouped.rename(columns=rename_dict)
     
     return grouped.reset_index()
-
-def merge_optional_data(base_df: pd.DataFrame, optional_df: pd.DataFrame = None) -> pd.DataFrame:
-    """
-    Merge optional environmental data if available.
-    """
-    if optional_df is None or optional_df.empty:
-        return base_df
-    
-    # Aggregate optional data to farm-year level
-    optional_agg = optional_df.groupby(['farm_id', 'year']).agg({
-        'soil_organic_matter_pct': 'mean',
-        'soil_ph': 'mean',
-        'cover_crop_planted_yes_no': lambda x: x.str.lower().isin(['yes', 'true', '1']).mean(),
-        'hedgerow_length_m': 'sum',
-        'wildflower_area_ha': 'sum',
-        'buffer_strip_area_ha': 'sum',
-        'trees_planted_count': 'sum',
-        'reduced_tillage_yes_no': lambda x: x.str.lower().isin(['yes', 'true', '1']).mean(),
-        'integrated_pest_management_yes_no': lambda x: x.str.lower().isin(['yes', 'true', '1']).mean(),
-        'water_volume_m3': 'sum',
-        'labour_hs_training_done_yes_no': lambda x: x.str.lower().isin(['yes', 'true', '1']).mean(),
-        'worker_contracts_formalised_yes_no': lambda x: x.str.lower().isin(['yes', 'true', '1']).mean(),
-    }).reset_index()
-    
-    # Merge with base data
-    merged = pd.merge(base_df, optional_agg, on=['farm_id', 'year'], how='left')
-    
-    return merged
 
 def percentile_score(series: pd.Series, higher_is_better=True) -> pd.Series:
     """Convert a series into 0-100 percentile scores."""
@@ -139,34 +170,40 @@ def percentile_score(series: pd.Series, higher_is_better=True) -> pd.Series:
 def compute_esg_scores(df: pd.DataFrame) -> pd.DataFrame:
     """
     Compute ESG scores from aggregated farm-level data.
+    Automatically includes optional columns when present.
     """
     result = df.copy()
     
     # === ENVIRONMENT SCORE (50% weight) ===
     env_components = {}
     
-    # Lower emissions = better
+    # Core environmental metrics (always present)
     env_components['emissions'] = percentile_score(result['emissions_per_ha'], higher_is_better=False)
-    
-    # Lower nitrogen use = better (environmental protection)
     env_components['nitrogen'] = percentile_score(result['n_per_ha'], higher_is_better=False)
-    
-    # Less pesticide use = better
     env_components['pesticide'] = percentile_score(result['pesticide_use_rate'], higher_is_better=False)
     
-    # Biodiversity metrics (if available)
+    # Optional environmental metrics (bonus points)
     if 'hedgerow_length_m' in result.columns:
-        # More hedgerows = better
         env_components['hedgerows'] = percentile_score(result['hedgerow_length_m'], higher_is_better=True)
     
     if 'wildflower_area_ha' in result.columns:
         env_components['wildflowers'] = percentile_score(result['wildflower_area_ha'], higher_is_better=True)
     
+    if 'buffer_strip_area_ha' in result.columns:
+        env_components['buffer_strips'] = percentile_score(result['buffer_strip_area_ha'], higher_is_better=True)
+    
     if 'soil_organic_matter_pct' in result.columns:
         env_components['soil_health'] = percentile_score(result['soil_organic_matter_pct'], higher_is_better=True)
     
-    if 'cover_crop_planted_yes_no' in result.columns:
-        env_components['cover_crops'] = percentile_score(result['cover_crop_planted_yes_no'], higher_is_better=True)
+    if 'cover_crop_rate' in result.columns:
+        env_components['cover_crops'] = percentile_score(result['cover_crop_rate'], higher_is_better=True)
+    
+    if 'trees_planted_count' in result.columns:
+        env_components['tree_planting'] = percentile_score(result['trees_planted_count'], higher_is_better=True)
+    
+    if 'water_volume_m3' in result.columns:
+        # Lower water use is better (efficiency)
+        env_components['water_efficiency'] = percentile_score(result['water_volume_m3'], higher_is_better=False)
     
     # Calculate environment score
     env_df = pd.DataFrame(env_components, index=result.index)
@@ -175,41 +212,41 @@ def compute_esg_scores(df: pd.DataFrame) -> pd.DataFrame:
     # === SOCIAL SCORE (30% weight) ===
     soc_components = {}
     
-    # Higher labour hours per hectare = more employment (context dependent)
+    # Core social metric
     soc_components['employment'] = percentile_score(result['labour_hours_per_ha'], higher_is_better=True)
     
-    # Safety and worker welfare (if available)
-    if 'labour_hs_training_done_yes_no' in result.columns:
+    # Optional social metrics (bonus points)
+    if 'safety_training_rate' in result.columns:
         soc_components['safety_training'] = percentile_score(
-            result['labour_hs_training_done_yes_no'], higher_is_better=True
+            result['safety_training_rate'], higher_is_better=True
         )
     
-    if 'worker_contracts_formalised_yes_no' in result.columns:
+    if 'contract_rate' in result.columns:
         soc_components['worker_contracts'] = percentile_score(
-            result['worker_contracts_formalised_yes_no'], higher_is_better=True
+            result['contract_rate'], higher_is_better=True
         )
     
-    # Calculate social score (or neutral if no data)
+    # Calculate social score
     if len(soc_components) > 0:
         soc_df = pd.DataFrame(soc_components, index=result.index)
         result['s_score'] = soc_df.mean(axis=1)
     else:
-        result['s_score'] = 50.0  # Neutral score if no social data
+        result['s_score'] = 50.0
     
     # === GOVERNANCE SCORE (20% weight) ===
     gov_components = {}
     
-    # SFI compliance rates (higher = better governance)
+    # Core governance: SFI compliance rates
     gov_components['sfi_soil'] = percentile_score(result['sfi_soil_compliance_rate'], higher_is_better=True)
     gov_components['sfi_nutrient'] = percentile_score(result['sfi_nutrient_compliance_rate'], higher_is_better=True)
     gov_components['sfi_hedgerow'] = percentile_score(result['sfi_hedgerow_compliance_rate'], higher_is_better=True)
     
-    # Sustainable practices (if available)
-    if 'reduced_tillage_yes_no' in result.columns:
-        gov_components['reduced_tillage'] = percentile_score(result['reduced_tillage_yes_no'], higher_is_better=True)
+    # Optional governance metrics (bonus points)
+    if 'reduced_tillage_rate' in result.columns:
+        gov_components['reduced_tillage'] = percentile_score(result['reduced_tillage_rate'], higher_is_better=True)
     
-    if 'integrated_pest_management_yes_no' in result.columns:
-        gov_components['ipm'] = percentile_score(result['integrated_pest_management_yes_no'], higher_is_better=True)
+    if 'ipm_rate' in result.columns:
+        gov_components['ipm'] = percentile_score(result['ipm_rate'], higher_is_better=True)
     
     # Calculate governance score
     gov_df = pd.DataFrame(gov_components, index=result.index)

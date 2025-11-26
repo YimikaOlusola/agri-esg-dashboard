@@ -1,26 +1,26 @@
 import plotly.graph_objects as go
 
 def create_gauge_chart(value: float, title: str = "Score") -> go.Figure:
-    """Farmer-friendly gauge chart with traffic light colors."""
+    """Farmer-friendly gauge chart with green/brown theme"""
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
         value=value,
         domain={'x': [0, 1], 'y': [0, 1]},
-        title={'text': title, 'font': {'size': 22, 'family': 'Inter'}},
-        number={'font': {'size': 56, 'family': 'Inter', 'weight': 700}},
+        title={'text': title, 'font': {'size': 22, 'family': 'Inter', 'color': '#32CD32'}},
+        number={'font': {'size': 56, 'family': 'Inter', 'weight': 700, 'color': '#2d5016'}},
         gauge={
-            'axis': {'range': [0, 100], 'tickwidth': 2, 'tickcolor': "#ccc"},
-            'bar': {'color': "#2c5f2d", 'thickness': 0.25},
+            'axis': {'range': [0, 100], 'tickwidth': 2, 'tickcolor': "#32CD32"},
+            'bar': {'color': "#2d5016", 'thickness': 0.25},
             'bgcolor': "white",
             'borderwidth': 3,
             'bordercolor': "#e0e0e0",
             'steps': [
-                {'range': [0, 40], 'color': '#ffebee'},
-                {'range': [40, 70], 'color': '#fff9c4'},
-                {'range': [70, 100], 'color': '#e8f5e9'}
+                {'range': [0, 40], 'color': "#fcc0c9"},  # Light red
+                {'range': [40, 70], 'color': "#f8eecc"},  # Light yellow
+                {'range': [70, 100], 'color': "#bef8c3"}  # Light green
             ],
             'threshold': {
-                'line': {'color': "#2c5f2d", 'width': 4},
+                'line': {'color': "#295e06", 'width': 4},
                 'thickness': 0.75,
                 'value': value
             }
@@ -30,7 +30,7 @@ def create_gauge_chart(value: float, title: str = "Score") -> go.Figure:
     fig.update_layout(
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        font={'color': "#333", 'family': "Inter"},
+        font={'color': "#32CD32", 'family': "Inter"},
         height=320,
         margin=dict(l=20, r=20, t=60, b=20)
     )
@@ -38,7 +38,7 @@ def create_gauge_chart(value: float, title: str = "Score") -> go.Figure:
     return fig
 
 def create_progress_line_chart(data: list[dict]) -> go.Figure:
-    """Simple line chart showing ESG score over time."""
+    """Simple line chart showing ESG score over time"""
     years = [d['year'] for d in data]
     scores = [d['esg_score'] for d in data]
     
@@ -49,26 +49,26 @@ def create_progress_line_chart(data: list[dict]) -> go.Figure:
         y=scores,
         mode='lines+markers+text',
         name='ESG Score',
-        line=dict(color='#28a745', width=4),
-        marker=dict(size=14, color='#28a745', symbol='circle',
+        line=dict(color='#4a7c29', width=4),
+        marker=dict(size=14, color='#2d5016', symbol='circle',
                    line=dict(width=2, color='white')),
         text=[f"{s:.0f}" for s in scores],
         textposition="top center",
-        textfont=dict(size=14, color='#28a745', family='Inter', weight=700),
+        textfont=dict(size=14, color='#2d5016', family='Inter', weight=700),
         fill='tozeroy',
-        fillcolor='rgba(40, 167, 69, 0.15)',
+        fillcolor='rgba(74, 124, 41, 0.15)',
         hovertemplate='<b>Year %{x}</b><br>ESG Score: %{y:.1f}/100<extra></extra>'
     ))
     
     fig.update_layout(
-        title=dict(text="Your ESG Score Progress", font=dict(size=20, family='Inter', weight=600)),
+        title=dict(text="Your ESG Score Progress", font=dict(size=20, family='Inter', weight=600, color='#5d4037')),
         xaxis_title="Year",
         yaxis_title="ESG Score",
         yaxis=dict(range=[0, 100], gridcolor='#e0e0e0'),
         xaxis=dict(gridcolor='#e0e0e0'),
         paper_bgcolor="white",
         plot_bgcolor="white",
-        font=dict(family="Inter", size=14),
+        font=dict(family="Inter", size=14, color='#5d4037'),
         hovermode='x unified',
         height=380,
         margin=dict(l=50, r=30, t=60, b=50)
@@ -80,10 +80,10 @@ def create_progress_line_chart(data: list[dict]) -> go.Figure:
     return fig
 
 def create_score_breakdown_pie(e_score: float, s_score: float, g_score: float) -> go.Figure:
-    """Pie chart showing ESG component breakdown."""
+    """Pie chart showing ESG component breakdown with green/brown theme"""
     labels = ['Environment', 'Social', 'Governance']
     values = [e_score, s_score, g_score]
-    colors = ['#4caf50', '#2196f3', '#ff9800']
+    colors = ['#4a7c29', '#8d6e63', '#f9a825']
     
     fig = go.Figure(data=[go.Pie(
         labels=labels,
@@ -114,10 +114,10 @@ def create_score_breakdown_pie(e_score: float, s_score: float, g_score: float) -
     return fig
 
 def create_emissions_donut(fertilizer: float, diesel: float, electricity: float) -> go.Figure:
-    """Donut chart showing emissions by source."""
+    """Donut chart showing emissions by source with green/brown theme"""
     labels = ['Fertilizer', 'Diesel', 'Electricity']
     values = [fertilizer, diesel, electricity]
-    colors = ['#ff6b6b', '#4ecdc4', '#ffe66d']
+    colors = ['#c62828', '#f9a825', '#8d6e63']
     
     fig = go.Figure(data=[go.Pie(
         labels=labels,
@@ -133,7 +133,7 @@ def create_emissions_donut(fertilizer: float, diesel: float, electricity: float)
     fig.add_annotation(
         text=f"<b>{sum(values):.0f}</b><br>kg CO₂e",
         x=0.5, y=0.5,
-        font=dict(size=20, family='Inter', weight=700),
+        font=dict(size=20, family='Inter', weight=700, color='#5d4037'),
         showarrow=False
     )
     
@@ -156,7 +156,7 @@ def create_emissions_donut(fertilizer: float, diesel: float, electricity: float)
     return fig
 
 def create_comparison_bar(my_farm: dict, all_farms_df) -> go.Figure:
-    """Simple bar chart comparing farm to average."""
+    """Simple bar chart comparing farm to average with green/brown theme"""
     avg_esg = all_farms_df['esg_score'].mean()
     avg_e = all_farms_df['e_score'].mean()
     avg_s = all_farms_df['s_score'].mean()
@@ -172,7 +172,7 @@ def create_comparison_bar(my_farm: dict, all_farms_df) -> go.Figure:
         name='Your Farm',
         x=categories,
         y=my_scores,
-        marker_color='#28a745',
+        marker_color='#4a7c29',
         text=[f"{s:.0f}" for s in my_scores],
         textposition='outside',
         textfont=dict(size=14, weight=700),
@@ -183,7 +183,7 @@ def create_comparison_bar(my_farm: dict, all_farms_df) -> go.Figure:
         name='Average Farm',
         x=categories,
         y=avg_scores,
-        marker_color='#b0bec5',
+        marker_color='#a1887f',
         text=[f"{s:.0f}" for s in avg_scores],
         textposition='outside',
         textfont=dict(size=14, weight=700),
@@ -196,7 +196,7 @@ def create_comparison_bar(my_farm: dict, all_farms_df) -> go.Figure:
         xaxis=dict(title=""),
         paper_bgcolor="white",
         plot_bgcolor="white",
-        font=dict(family="Inter", size=13),
+        font=dict(family="Inter", size=13, color='#5d4037'),
         height=350,
         margin=dict(l=50, r=30, t=40, b=50),
         legend=dict(

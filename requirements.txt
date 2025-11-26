@@ -5,3 +5,7 @@ plotly
 langchain
 langchain-google-genai
 python-dotenv
+reportlab
+pypdf
+Pillow
+kaleido
