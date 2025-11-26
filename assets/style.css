@@ -1,0 +1,153 @@
+/* Import clean font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+/* Global styles */
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif;
+}
+
+/* Main title */
+.main-title {
+    font-size: 42px;
+    font-weight: 700;
+    color: #2c5f2d;
+    text-align: center;
+    margin-bottom: 5px;
+}
+
+.subtitle {
+    font-size: 18px;
+    color: #666;
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+/* Section titles */
+.section-title {
+    font-size: 28px;
+    font-weight: 600;
+    color: #2c5f2d;
+    margin: 20px 0 15px 0;
+}
+
+/* Hero section */
+.hero-section {
+    background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+.score-message {
+    font-size: 20px;
+    font-weight: 600;
+    margin-top: 15px;
+}
+
+/* Metric cards */
+.metric-card {
+    background: white;
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    text-align: center;
+    transition: transform 0.2s;
+    height: 180px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.metric-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+}
+
+.metric-icon {
+    font-size: 48px;
+    margin-bottom: 10px;
+}
+
+.metric-title {
+    font-size: 14px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+}
+
+.metric-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.metric-status {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+/* AI Insight cards */
+.insight-card {
+    background: linear-gradient(135deg, #fff9e6 0%, #fffdf7 100%);
+    border-left: 5px solid #ffc107;
+    border-radius: 10px;
+    padding: 20px;
+    margin: 15px 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    display: flex;
+    align-items: flex-start;
+}
+
+.insight-number {
+    background: #ffc107;
+    color: white;
+    font-size: 20px;
+    font-weight: 700;
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 15px;
+    flex-shrink: 0;
+}
+
+.insight-text {
+    font-size: 16px;
+    line-height: 1.6;
+    color: #333;
+}
+
+/* Footer */
+.footer {
+    text-align: center;
+    color: #999;
+    font-size: 14px;
+    margin-top: 40px;
+    padding: 20px 0;
+}
+
+/* Streamlit button customization */
+button[kind="primary"] {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    border: none;
+    font-size: 18px;
+    font-weight: 600;
+    padding: 15px 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+}
+
+button[kind="primary"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+}
+
+/* Hide Streamlit branding */
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}

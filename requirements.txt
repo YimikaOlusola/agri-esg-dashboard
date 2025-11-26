@@ -1,5 +1,7 @@
 streamlit
-altair
 pandas
 numpy
-fpdf2
+plotly
+langchain
+langchain-google-genai
+python-dotenv
