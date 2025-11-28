@@ -87,6 +87,7 @@ accidents_count
 ### Required Columns for Farm-Level ESG Analysis:
 
 ```
+farmer_name
 farm_id
 farm_name
 country
