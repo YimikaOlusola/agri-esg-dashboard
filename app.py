@@ -27,7 +27,7 @@ load_dotenv()
 # Page config
 st.set_page_config(
     page_title="AgriESG Dashboard",
-    page_icon="🌾",
+    page_icon="assets/agriesg_icon.png",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -228,8 +228,6 @@ def load_css():
 load_css()
 
 # === COLUMN MAPPING ===
-# Key = Cleaned CSV Header (lowercase, spaces to underscores)
-# Value = Internal Variable Name used in calculations.py
 COLUMN_MAPPING = {
     # Required
     'nitrogen_fertiliser_kg': 'fertiliser_kgN',
@@ -241,11 +239,10 @@ COLUMN_MAPPING = {
     'selling_price_£_ton': 'selling_price_per_ton',
     
     # Optional
-    'cover_crop_yes_no': 'cover_crop_planted_yes_no',  # Matches 'Cover Crop (Yes/No)'
-    'trees_planted': 'trees_planted_count',          # Matches 'Trees Planted'
+    'cover_crop_yes_no': 'cover_crop_planted_yes_no', 
+    'trees_planted': 'trees_planted_count',          
 }
 
-# Internal variable names (after mapping) required for the app to run
 REQUIRED_INTERNAL_COLS = [
     'farmer_name', 'farm_name', 'year', 'month', 'field_name', 
     'field_area_ha', 'crop_type', 'fertiliser_kgN', 
@@ -292,18 +289,18 @@ def get_status_info(value, thresholds, lower_is_better=False):
     """Return plain English status text, CSS class, and emoji"""
     if lower_is_better:
         if value <= thresholds['excellent']:
-            return "Low", "status-low", "✅", 90
+            return "Low", "status-low", "🟢", 90
         elif value <= thresholds['good']:
-            return "Okay", "status-on-track", "⚠️", 65
+            return "Okay", "status-on-track", "✔️", 65
         else:
-            return "High", "status-needs-work", "❌", 35
+            return "High", "status-needs-work", "🔴", 35
     else:
         if value >= thresholds['excellent']:
-            return "Healthy", "status-healthy", "✅", 90
+            return "Healthy", "status-healthy", "🟢", 90
         elif value >= thresholds['good']:
             return "Okay", "status-on-track", "⚠️", 65
         else:
-            return "Needs Work", "status-needs-work", "❌", 35
+            return "Needs Work", "status-needs-work", "🔴", 35
 
 @st.cache_data(ttl=1800)
 def load_and_process_data(file_bytes):
@@ -374,6 +371,28 @@ if uploaded_file is None:
         """)
     
     st.markdown("---")
+    
+    st.expander("**View Optional/Recommended Data Fields**").markdown("""
+    Providing these fields improves the accuracy of your scores and unlocks more detailed insights:
+                                                                      
+    Recommended 
+    * Farm ID
+    * Field ID
+    * Phosphate Fertiliser (kg)
+    * Potash Fertiliser (kg)
+    * Soil Type
+    * Labour Hours
+    * Yield (tons)
+    * Selling Price (£/ton)
+                                                                      
+    Optional advanced 
+    * Cover Crop (Yes/No)
+    * Reduced Tillage (Yes/No)
+    * Trees Planted
+    * Soil Test Conducted (Yes/No)
+    * Notes
+    """)
+    
     st.markdown("### 📥 Download CSV Template")
     
     # Create template matching new requirements
@@ -390,7 +409,6 @@ if uploaded_file is None:
         'Diesel Used (Litres)': [120],
         'Irrigation Applied (Yes/No)': ['No'],
         'Livestock Present (Yes/No)': ['No'],
-        # Add a few recommended columns as empty/example for guidance
         'Farm ID': ['FARM-01'],
         'Yield (tons)': [''],
         'Soil Test Conducted (Yes/No)': ['']
@@ -528,13 +546,13 @@ with col_center:
 
 score = my_farm['esg_score']
 if score >= 70:
-    message = "🎉 Healthy Profile! You're leading the way."
+    message = "🟢 Healthy Profile! You're leading the way."
     color = "#2d5016"
 elif score >= 50:
-    message = "👍 On Track! A few improvements will help."
+    message = "✔️ On Track! A few improvements will help."
     color = "#c9800b"
 else:
-    message = "💪 Needs Work. Let's improve your practices."
+    message = "🔴 Needs Work. Let's improve your practices."
     color = "#c62828"
 
 st.markdown(f'''
@@ -561,7 +579,7 @@ with col1:
         <div class="metric-icon">🌾</div>
         <div class="metric-title">Total Farm Area</div>
         <div class="metric-value">{total_area:.1f} ha</div>
-        <div class="metric-status status-on-track">✅ On track</div>
+        <div class="metric-status status-on-track">✔️ On track</div>
     </div>
     ''', unsafe_allow_html=True)
 
@@ -623,7 +641,7 @@ with st.spinner(f"🤖 Generating advice for {greeting_name}..."):
         female_share=0,
         accidents=0,
         farm_id=selected_farm,
-        farmer_name=greeting_name # Passing farm name here as requested
+        farmer_name=greeting_name 
     )
 
 insights_html = '<div class="insights-container">'
@@ -710,8 +728,6 @@ with col1:
                     line_fig_for_pdf = create_progress_line_chart(historical_data)
             
             # Generate PDF
-            # We pass 'greeting_name' (Farm Name) into the farmer_name argument
-            # so the PDF says "Hello [Farm Name]"
             pdf_buffer = generate_pdf_report(
                 farm_data=my_farm,
                 farmer_name=greeting_name, 
@@ -737,9 +753,6 @@ with col2:
         report_data = {
             'Farm ID': [selected_farm],
             'Farm Name': [my_farm['farm_name']],
-            # We also update the CSV to reflect the Farm Name in the primary name field if desired,
-            # or you can keep the original farmer name here. 
-            # Given your request, we prioritize Farm Name context:
             'Report For': [greeting_name], 
             'Year': [current_year],
             'ESG Score': [my_farm['esg_score']],

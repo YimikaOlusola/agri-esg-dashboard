@@ -270,21 +270,22 @@ def create_comparison_bar(my_farm: dict, all_farms_df) -> go.Figure:
             title="",
             tickfont=dict(color='#5d4037')
         ),
-        paper_bgcolor="white",
         plot_bgcolor="white",
         font=dict(family="Inter", size=13, color='#5d4037'),
         height=350,
-        margin=dict(l=50, r=30, t=50, b=50),
+        margin=dict(l=40, r=30, t=50, b=50),
         legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1,
-            font=dict(color='#5d4037')
-        )
+        orientation="h",
+        yanchor="top",
+        y=1.02,          
+        xanchor="right",
+        x=1.01,
+        bgcolor="#dfcfcb",  
+        bordercolor='#e0e0e0',
+        borderwidth=1,
     )
-    
+
+    )
     fig.update_xaxes(showgrid=False, showline=True, linewidth=2, linecolor='#e0e0e0')
     fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#e0e0e0')
     
