@@ -228,8 +228,6 @@ def load_css():
 load_css()
 
 # === COLUMN MAPPING ===
-# Key = Cleaned CSV Header (lowercase, spaces to underscores)
-# Value = Internal Variable Name used in calculations.py
 COLUMN_MAPPING = {
     # Required
     'nitrogen_fertiliser_kg': 'fertiliser_kgN',
@@ -241,11 +239,10 @@ COLUMN_MAPPING = {
     'selling_price_£_ton': 'selling_price_per_ton',
     
     # Optional
-    'cover_crop_yes_no': 'cover_crop_planted_yes_no',  # Matches 'Cover Crop (Yes/No)'
-    'trees_planted': 'trees_planted_count',          # Matches 'Trees Planted'
+    'cover_crop_yes_no': 'cover_crop_planted_yes_no', 
+    'trees_planted': 'trees_planted_count',          
 }
 
-# Internal variable names (after mapping) required for the app to run
 REQUIRED_INTERNAL_COLS = [
     'farmer_name', 'farm_name', 'year', 'month', 'field_name', 
     'field_area_ha', 'crop_type', 'fertiliser_kgN', 
@@ -412,7 +409,6 @@ if uploaded_file is None:
         'Diesel Used (Litres)': [120],
         'Irrigation Applied (Yes/No)': ['No'],
         'Livestock Present (Yes/No)': ['No'],
-        # Add a few recommended columns as empty/example for guidance
         'Farm ID': ['FARM-01'],
         'Yield (tons)': [''],
         'Soil Test Conducted (Yes/No)': ['']
@@ -645,7 +641,7 @@ with st.spinner(f"🤖 Generating advice for {greeting_name}..."):
         female_share=0,
         accidents=0,
         farm_id=selected_farm,
-        farmer_name=greeting_name # Passing farm name here as requested
+        farmer_name=greeting_name 
     )
 
 insights_html = '<div class="insights-container">'
@@ -732,8 +728,6 @@ with col1:
                     line_fig_for_pdf = create_progress_line_chart(historical_data)
             
             # Generate PDF
-            # We pass 'greeting_name' (Farm Name) into the farmer_name argument
-            # so the PDF says "Hello [Farm Name]"
             pdf_buffer = generate_pdf_report(
                 farm_data=my_farm,
                 farmer_name=greeting_name, 
@@ -759,9 +753,6 @@ with col2:
         report_data = {
             'Farm ID': [selected_farm],
             'Farm Name': [my_farm['farm_name']],
-            # We also update the CSV to reflect the Farm Name in the primary name field if desired,
-            # or you can keep the original farmer name here. 
-            # Given your request, we prioritize Farm Name context:
             'Report For': [greeting_name], 
             'Year': [current_year],
             'ESG Score': [my_farm['esg_score']],
