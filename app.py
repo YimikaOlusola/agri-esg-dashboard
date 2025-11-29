@@ -4,7 +4,7 @@ import time
 from dotenv import load_dotenv
 import uuid
 import base64
-import io  # for in-memory Excel exports
+import io  # for in-memory Excel/CSV exports
 
 from utils.logging_interface import render_logging_interface
 
@@ -25,7 +25,7 @@ from utils.visualisations import (
 from utils.report_engine import FarmProfile, build_report, build_master_report_data
 from utils.report_export import render_report_to_pdf, build_excel_from_report
 from utils.policies import SFIPolicy
-from utils.report_defs import REPORT_DEFINITIONS  # <- new
+from utils.report_defs import REPORT_DEFINITIONS
 
 # Load environment variables
 load_dotenv()
@@ -37,6 +37,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
 
 # Load CSS
 def load_css():
@@ -239,7 +240,6 @@ REQUIRED_INTERNAL_COLS = [
     "livestock_present_yes_no",
 ]
 
-# Display labels for user feedback
 REQUIRED_DISPLAY_LABELS = {
     "farmer_name": "Farmer Name",
     "farm_name": "Farm Name",
@@ -257,7 +257,7 @@ REQUIRED_DISPLAY_LABELS = {
 
 
 def get_status_info(value, thresholds, lower_is_better=False):
-    """Return plain English status text, CSS class, and emoji"""
+    """Return plain English status text, CSS class, and emoji."""
     if lower_is_better:
         if value <= thresholds["excellent"]:
             return "Low", "status-low", "🟢", 90
@@ -276,12 +276,11 @@ def get_status_info(value, thresholds, lower_is_better=False):
 
 @st.cache_data(ttl=1800)
 def load_and_process_data(file_bytes):
-    """Load CSV and compute all metrics"""
+    """Load CSV and compute all metrics."""
     start_time = time.time()
 
     df = pd.read_csv(pd.io.common.BytesIO(file_bytes))
 
-    # 1. Clean column names (standardize)
     df.columns = (
         df.columns.str.strip()
         .str.lower()
@@ -293,17 +292,14 @@ def load_and_process_data(file_bytes):
         .str.replace("£", "£")
     )
 
-    # 2. Rename columns using the mapping to match internal logic
     df = df.rename(columns=COLUMN_MAPPING)
 
-    # 3. Handle Missing IDs
     if "farm_id" not in df.columns and "farm_name" in df.columns:
         df["farm_id"] = df.apply(
             lambda x: f"{str(x['farm_name'])[:3].upper()}-{hash(str(x['farm_name'])) % 1000:03d}",
             axis=1,
         )
 
-    # Compute
     df = compute_kpis(df)
     farm_df = aggregate_to_farm_level(df)
 
@@ -320,7 +316,7 @@ def get_base64_image(image_path):
         return None
 
 
-# Sidebar – upload
+# === SIDEBAR – UPLOAD ===
 with st.sidebar:
     st.header("📁 Upload Data")
     uploaded_file = st.file_uploader("Upload your CSV file", type="csv")
@@ -330,7 +326,7 @@ with st.sidebar:
 
     st.markdown("---")
 
-# Welcome screen
+# === WELCOME SCREEN ===
 if uploaded_file is None:
     st.info("👋 **Welcome!** Upload your farm data CSV to get started.")
 
@@ -341,10 +337,10 @@ if uploaded_file is None:
         st.markdown(
             """
         **Required:**
-        - Farmer & Farm Name
-        - Date (Year/Month)
-        - Field details & Crops
-        - Inputs: Nitrogen, Pesticides, Diesel, Irrigation
+        - Farmer & Farm Name  
+        - Date (Year/Month)  
+        - Field details & Crops  
+        - Inputs: Nitrogen, Pesticides, Diesel, Irrigation  
         - Livestock presence
         """
         )
@@ -365,7 +361,7 @@ if uploaded_file is None:
         """
     Providing these fields improves the accuracy of your scores and unlocks more detailed insights:
                                                                       
-    Recommended  
+    **Recommended**  
     * Farm ID  
     * Field ID  
     * Phosphate Fertiliser (kg)  
@@ -373,9 +369,9 @@ if uploaded_file is None:
     * Soil Type  
     * Labour Hours  
     * Yield (tons)  
-    * Selling Price (£/ton)
+    * Selling Price (£/ton)  
                                                                       
-    Optional advanced  
+    **Optional advanced**  
     * Cover Crop (Yes/No)  
     * Reduced Tillage (Yes/No)  
     * Trees Planted  
@@ -418,7 +414,7 @@ if uploaded_file is None:
 
     st.stop()
 
-# Load and validate data
+# === LOAD + VALIDATE DATA ===
 file_bytes = uploaded_file.getvalue()
 
 try:
@@ -436,7 +432,6 @@ try:
     )
 
     raw_df = raw_df.rename(columns=COLUMN_MAPPING)
-
     current_cols = raw_df.columns.tolist()
 
     missing_required = [
@@ -464,7 +459,6 @@ try:
         "trees_planted_count",
         "soil_test_conducted_yes_no",
     ]
-
     has_optional = any(col in current_cols for col in optional_internal_names)
 
     if not has_optional:
@@ -480,11 +474,11 @@ except Exception as e:
     st.markdown(f"Error reading file: {str(e)}")
     st.stop()
 
-# Compute ESG scores
+# === ESG SCORES ===
 with st.spinner("📊 Calculating ESG scores..."):
     esg_df = compute_esg_scores(farm_df)
 
-# Sidebar – filters + scheme selector
+# === SIDEBAR FILTERS & POLICY LAYER ===
 with st.sidebar:
     st.markdown("### 🔍 Filters")
     years = sorted(esg_df["year"].dropna().unique().tolist())
@@ -512,14 +506,12 @@ with st.sidebar:
         ],
     )
 
-# Decide active policy object
 if policy_choice.startswith("SFI"):
     active_policy = SFIPolicy()
 else:
-    # For now still use SFI as a neutral scorer; later you can add a NullPolicy.
-    active_policy = SFIPolicy()
+    active_policy = SFIPolicy()  # placeholder for future NullPolicy/others
 
-# Filter data for selected farm/years
+# Filter for selected farm/years
 filtered_esg = esg_df[
     (esg_df["farm_id"] == selected_farm) & (esg_df["year"].isin(selected_years))
 ]
@@ -528,7 +520,6 @@ if filtered_esg.empty:
     st.warning("No data for selected filters")
     st.stop()
 
-# Get current-year row
 if view_mode == "Current Year Snapshot":
     my_farm = filtered_esg.iloc[0]
     current_year = selected_year
@@ -537,7 +528,7 @@ else:
     my_farm = latest
     current_year = max(selected_years)
 
-# Build unified report_data object for all 5 reports
+# Build master report data (one object for all reports)
 report_data = build_master_report_data(
     df=df,
     my_farm=my_farm,
@@ -547,7 +538,7 @@ report_data = build_master_report_data(
     policy=active_policy,
 )
 
-# === HERO SECTION / HEADER ===
+# === HERO SECTION ===
 icon_path = "assets/agriesg_icon.png"
 icon_base64 = get_base64_image(icon_path)
 
@@ -605,7 +596,6 @@ st.markdown(
 
 # === QUICK STATS ===
 st.markdown('<h2 class="section-title">Quick Stats</h2>', unsafe_allow_html=True)
-
 col1, col2, col3, col4 = st.columns(4)
 
 total_area = my_farm["total_farm_area_ha"]
@@ -632,7 +622,7 @@ with col1:
     )
 
 with col2:
-    status_text, status_class, emoji, norm_score = get_status_info(
+    status_text, status_class, emoji, _ = get_status_info(
         emissions_per_ha,
         {"excellent": 30, "good": 50},
         lower_is_better=True,
@@ -651,7 +641,7 @@ with col2:
     )
 
 with col3:
-    status_text, status_class, emoji, norm_score = get_status_info(
+    status_text, status_class, emoji, _ = get_status_info(
         n_per_ha,
         {"excellent": 50, "good": 100},
         lower_is_better=True,
@@ -670,7 +660,7 @@ with col3:
     )
 
 with col4:
-    status_text, status_class, emoji, norm_score = get_status_info(
+    status_text, status_class, emoji, _ = get_status_info(
         sfi_avg,
         {"excellent": 80, "good": 50},
     )
@@ -691,7 +681,6 @@ st.markdown("---")
 
 # === AI INSIGHTS ===
 st.markdown('<h2 class="section-title">💡 What You Can Do This Season</h2>', unsafe_allow_html=True)
-
 greeting_name = my_farm.get("farm_name", "Farm")
 
 with st.spinner(f"🤖 Generating advice for {greeting_name}..."):
@@ -712,7 +701,6 @@ insights_html = '<div class="insights-container">'
 for insight in insights:
     insights_html += f'<div class="insight-item"><p>{insight}</p></div>'
 insights_html += "</div>"
-
 st.markdown(insights_html, unsafe_allow_html=True)
 
 st.markdown("---")
@@ -770,7 +758,7 @@ with tab4:
 
 st.markdown("---")
 
-# === REPORTS HUB (DROPDOWN, DRIVEN BY REPORT_DEFINITIONS) ===
+# === REPORTS HUB (DROPDOWN) ===
 st.markdown('<h2 class="section-title">Reports</h2>', unsafe_allow_html=True)
 st.markdown(
     "Download reports generated from the same underlying emissions and scheme-agnostic ESG engine."
@@ -778,7 +766,6 @@ st.markdown(
 
 greeting_name = my_farm.get("farm_name", "Farm Team")
 
-# Build options from REPORT_DEFINITIONS
 report_options = {v["label"]: k for k, v in REPORT_DEFINITIONS.items()}
 report_label = st.selectbox("Choose a report type", list(report_options.keys()))
 report_key = report_options[report_label]
@@ -798,7 +785,6 @@ if report_key == "emissions_performance":
         base_year=min(report_data["farm"]["years_selected"]),
     )
 
-    # Build DF in the shape expected by build_report()
     activity_for_emissions = report_data["activity"].rename(
         columns={
             "field_name": "Field Name",
@@ -851,8 +837,8 @@ elif report_key == "scope3_supply_chain":
     st.caption("Emissions by crop for buyers, retailers and supermarkets.")
 
     supply_chain_df = report_data["supply_chain"].copy()
-
     sc_csv = supply_chain_df.to_csv(index=False).encode("utf-8")
+
     sc_io = io.BytesIO()
     with pd.ExcelWriter(sc_io, engine="openpyxl") as writer:
         supply_chain_df.to_excel(writer, index=False, sheet_name="Scope3 Supply Chain")
@@ -883,7 +869,9 @@ elif report_key == "scope3_supply_chain":
 # 3) SFI Plan (SFI / Government)
 elif report_key == "sfi_plan":
     st.markdown("### SFI Plan")
-    st.caption("High-level SFI readiness snapshot for soil, nutrients and hedgerows.")
+    st.caption("Field-by-field SFI actions and readiness to support SFI applications.")
+
+    from utils.report_export import render_sfi_plan_pdf
 
     policy_results = report_data.get("policy") or report_data.get("sfi", {})
 
@@ -908,16 +896,29 @@ elif report_key == "sfi_plan":
     )
     sfi_csv = sfi_plan_df.to_csv(index=False).encode("utf-8")
 
+    col1, col2 = st.columns(2)
+
+    if "pdf" in report_meta["formats"]:
+        with col1:
+            sfi_pdf = render_sfi_plan_pdf(report_data)
+            st.download_button(
+                "PDF – SFI Action Plan",
+                data=sfi_pdf,
+                file_name=f"farm_{selected_farm}_sfi_plan_{current_year}.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+                type="primary",
+            )
+
     if "csv" in report_meta["formats"]:
-        st.download_button(
-            "CSV – SFI Plan Snapshot",
-            data=sfi_csv,
-            file_name=f"farm_{selected_farm}_sfi_plan_{current_year}.csv",
-            mime="text/csv",
-            use_container_width=True,
-            type="primary",
-        )
-    # later we can add an SFI PDF when you have a template
+        with col2:
+            st.download_button(
+                "CSV – SFI Plan Snapshot",
+                data=sfi_csv,
+                file_name=f"farm_{selected_farm}_sfi_plan_{current_year}.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
 
 # 4) CSV & ESG Summary (advisors / agronomists)
 elif report_key == "csv_esg_summary":
