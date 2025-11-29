@@ -9,3 +9,5 @@ reportlab
 pypdf
 Pillow
 kaleido
+openpyxl
+fpdf2
