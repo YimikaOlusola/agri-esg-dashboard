@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 import uuid
 import base64
 
+from utils.report_engine import build_master_report_data
+
 from utils.logging_interface import render_logging_interface
 
 from utils.calculations import (
