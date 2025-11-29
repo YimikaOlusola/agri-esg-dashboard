@@ -114,3 +114,133 @@ def build_report(df: pd.DataFrame, farm_profile: FarmProfile) -> Dict[str, Any]:
     }
 
     return report
+import pandas as pd
+
+def build_master_report_data(
+    df: pd.DataFrame,
+    my_farm: pd.Series,
+    selected_farm: str,
+    current_year: int,
+    selected_years: list[int]
+) -> Dict[str, Any]:
+    """
+    MASTER PIPELINE for all reports.
+
+    It implements the 5 backend steps:
+    1) Ingest & clean (already done before this function is called)
+    2) Classify into sustainability categories
+    3) Emissions & performance (Scope 1/3, intensity)
+    4) SFI / compliance logic
+    5) Package everything into one report_data object
+    """
+
+    # 2. Classification categories (conceptual mapping)
+    classification = {
+        "scope1": ["emissions_diesel"],
+        "scope3": ["emissions_fertilizer"],
+        "production": ["yield_tons"],
+        "area": ["field_area_ha"],
+        "sfi": [
+            "sfi_soil_compliance_rate",
+            "sfi_nutrient_compliance_rate",
+            "sfi_hedgerow_compliance_rate",
+        ],
+    }
+
+    # 3. Emissions & performance calculations – use values already computed by compute_kpis
+    scope1_kg = float(my_farm.get("emissions_diesel", 0))
+    scope3_kg = float(my_farm.get("emissions_fertilizer", 0))
+    total_kg = float(my_farm.get("total_emissions", scope1_kg + scope3_kg))
+
+    scope1_t = scope1_kg / 1000.0
+    scope3_t = scope3_kg / 1000.0
+    total_t = total_kg / 1000.0
+
+    total_area_ha = float(my_farm.get("total_farm_area_ha", df.get("field_area_ha", pd.Series([0])).sum()))
+    emissions_per_ha = float(my_farm.get("emissions_per_ha", 0))
+    n_per_ha = float(my_farm.get("n_per_ha", 0))
+
+    # 4. SFI / compliance logic (simple version – you can extend later)
+    sfi_soil = float(my_farm.get("sfi_soil_compliance_rate", 0)) * 100
+    sfi_nutrient = float(my_farm.get("sfi_nutrient_compliance_rate", 0)) * 100
+    sfi_hedgerow = float(my_farm.get("sfi_hedgerow_compliance_rate", 0)) * 100
+
+    sfi_readiness = (sfi_soil + sfi_nutrient + sfi_hedgerow) / 3 if any(
+        [sfi_soil, sfi_nutrient, sfi_hedgerow]
+    ) else 0
+
+    # Supply chain view – by crop
+    if "crop_type" in df.columns:
+        supply_chain_df = (
+            df.groupby("crop_type", dropna=False)
+            .agg(
+                field_area_ha=("field_area_ha", "sum"),
+                emissions_fertilizer=("emissions_fertilizer", "sum"),
+                emissions_diesel=("emissions_diesel", "sum"),
+                yield_tons=("yield_tons", "sum") if "yield_tons" in df.columns else ("field_area_ha", "sum"),
+            )
+            .reset_index()
+            .rename(
+                columns={
+                    "crop_type": "Crop",
+                    "field_area_ha": "Total Area (ha)",
+                    "emissions_fertilizer": "Fertiliser Emissions (kgCO2e)",
+                    "emissions_diesel": "Diesel Emissions (kgCO2e)",
+                    "yield_tons": "Yield (tons)",
+                }
+            )
+        )
+    else:
+        supply_chain_df = pd.DataFrame(
+            [
+                {
+                    "Crop": "All crops",
+                    "Total Area (ha)": total_area_ha,
+                    "Fertiliser Emissions (kgCO2e)": scope3_kg,
+                    "Diesel Emissions (kgCO2e)": scope1_kg,
+                    "Yield (tons)": float(my_farm.get("yield_tons", 0)),
+                }
+            ]
+        )
+
+    supply_chain_df["Total Emissions (kgCO2e)"] = (
+        supply_chain_df["Fertiliser Emissions (kgCO2e)"]
+        + supply_chain_df["Diesel Emissions (kgCO2e)"]
+    )
+
+    report_data = {
+        "farm": {
+            "id": selected_farm,
+            "name": my_farm.get("farm_name", ""),
+            "year": int(current_year),
+            "years_selected": [int(y) for y in selected_years],
+            "area_ha": total_area_ha,
+        },
+        "classification": classification,
+        "emissions": {
+            "scope1_t": scope1_t,
+            "scope3_t": scope3_t,
+            "total_t": total_t,
+            "scope1_kg": scope1_kg,
+            "scope3_kg": scope3_kg,
+            "total_kg": total_kg,
+            "emissions_per_ha": emissions_per_ha,
+            "n_per_ha": n_per_ha,
+        },
+        "sfi": {
+            "soil_pct": sfi_soil,
+            "nutrient_pct": sfi_nutrient,
+            "hedgerow_pct": sfi_hedgerow,
+            "readiness_pct": sfi_readiness,
+        },
+        "esg": {
+            "esg_score": float(my_farm.get("esg_score", 0)),
+            "e_score": float(my_farm.get("e_score", 0)),
+            "s_score": float(my_farm.get("s_score", 0)),
+            "g_score": float(my_farm.get("g_score", 0)),
+        },
+        "supply_chain": supply_chain_df,
+        "activity": df,
+    }
+
+    return report_data
