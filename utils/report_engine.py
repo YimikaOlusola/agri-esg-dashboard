@@ -26,7 +26,6 @@ N_FERT_FACTOR_KG_PER_KG = 6.0
 P_FERT_FACTOR_KG_PER_KG = 1.0
 K_FERT_FACTOR_KG_PER_KG = 0.5
 
-
 def _calculate_emissions(df: pd.DataFrame) -> EmissionsResults:
     """
     Map CSV columns to Scope 1 & 3 emissions and calculate intensities.
