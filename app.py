@@ -24,7 +24,8 @@ from utils.visualisations import (
 
 from utils.report_engine import FarmProfile, build_report, build_master_report_data
 from utils.report_export import render_report_to_pdf, build_excel_from_report
-from utils.policies import SFIPolicy  # 🔁 policy layer
+from utils.policies import SFIPolicy
+from utils.report_defs import REPORT_DEFINITIONS  # <- new
 
 # Load environment variables
 load_dotenv()
@@ -515,7 +516,7 @@ with st.sidebar:
 if policy_choice.startswith("SFI"):
     active_policy = SFIPolicy()
 else:
-    # For now, still use SFIPolicy as a neutral scorer; later you can add a NullPolicy.
+    # For now still use SFI as a neutral scorer; later you can add a NullPolicy.
     active_policy = SFIPolicy()
 
 # Filter data for selected farm/years
@@ -537,7 +538,6 @@ else:
     current_year = max(selected_years)
 
 # Build unified report_data object for all 5 reports
-# NOTE: build_master_report_data should accept a `policy` argument.
 report_data = build_master_report_data(
     df=df,
     my_farm=my_farm,
@@ -770,27 +770,25 @@ with tab4:
 
 st.markdown("---")
 
-# === REPORTS HUB (DROPDOWN) ===
+# === REPORTS HUB (DROPDOWN, DRIVEN BY REPORT_DEFINITIONS) ===
 st.markdown('<h2 class="section-title">Reports</h2>', unsafe_allow_html=True)
-st.markdown("Download reports generated from the same underlying emissions and scheme-agnostic ESG engine.")
+st.markdown(
+    "Download reports generated from the same underlying emissions and scheme-agnostic ESG engine."
+)
 
 greeting_name = my_farm.get("farm_name", "Farm Team")
 
-report_choice = st.selectbox(
-    "Choose a report type",
-    [
-        "Emissions & Performance",
-        "Scope 3 Supply Chain Report",
-        "SFI Plan",
-        "CSV & ESG Summary",
-        "Sustainability Summary",
-    ],
-)
+# Build options from REPORT_DEFINITIONS
+report_options = {v["label"]: k for k, v in REPORT_DEFINITIONS.items()}
+report_label = st.selectbox("Choose a report type", list(report_options.keys()))
+report_key = report_options[report_label]
+report_meta = REPORT_DEFINITIONS[report_key]
 
+st.caption(f"For: **{report_meta['stakeholder']}**")
 st.markdown("---")
 
-# 1) Emissions & Performance
-if report_choice == "Emissions & Performance":
+# 1) Emissions & Performance (banks / lenders)
+if report_key == "emissions_performance":
     st.markdown("### Emissions & Performance")
     st.caption("Scope 1 & 3 emissions and farm performance for banks and lenders.")
 
@@ -800,6 +798,7 @@ if report_choice == "Emissions & Performance":
         base_year=min(report_data["farm"]["years_selected"]),
     )
 
+    # Build DF in the shape expected by build_report()
     activity_for_emissions = report_data["activity"].rename(
         columns={
             "field_name": "Field Name",
@@ -810,7 +809,6 @@ if report_choice == "Emissions & Performance":
             "fertiliser_kgK2O": "Potash Fertiliser (kg)",
         }
     )
-
     for col in [
         "Field Name",
         "Field Area (ha)",
@@ -827,32 +825,34 @@ if report_choice == "Emissions & Performance":
     ep_xlsx = build_excel_from_report(emissions_report)
 
     col1, col2 = st.columns(2)
-    with col1:
-        st.download_button(
-            "PDF – Emissions & Performance",
-            data=ep_pdf,
-            file_name=f"farm_{selected_farm}_emissions_performance_{current_year}.pdf",
-            mime="application/pdf",
-            use_container_width=True,
-            type="primary",
-        )
-    with col2:
-        st.download_button(
-            "Excel – Emissions Data",
-            data=ep_xlsx,
-            file_name=f"farm_{selected_farm}_emissions_data_{current_year}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True,
-        )
+    if "pdf" in report_meta["formats"]:
+        with col1:
+            st.download_button(
+                "PDF – Emissions & Performance",
+                data=ep_pdf,
+                file_name=f"farm_{selected_farm}_emissions_performance_{current_year}.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+                type="primary",
+            )
+    if "excel" in report_meta["formats"]:
+        with col2:
+            st.download_button(
+                "Excel – Emissions Data",
+                data=ep_xlsx,
+                file_name=f"farm_{selected_farm}_emissions_data_{current_year}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+            )
 
-# 2) Scope 3 Supply Chain Report
-elif report_choice == "Scope 3 Supply Chain Report":
+# 2) Scope 3 Supply Chain Report (supermarkets / buyers)
+elif report_key == "scope3_supply_chain":
     st.markdown("### Scope 3 Supply Chain Report")
     st.caption("Emissions by crop for buyers, retailers and supermarkets.")
 
     supply_chain_df = report_data["supply_chain"].copy()
-    sc_csv = supply_chain_df.to_csv(index=False).encode("utf-8")
 
+    sc_csv = supply_chain_df.to_csv(index=False).encode("utf-8")
     sc_io = io.BytesIO()
     with pd.ExcelWriter(sc_io, engine="openpyxl") as writer:
         supply_chain_df.to_excel(writer, index=False, sheet_name="Scope3 Supply Chain")
@@ -860,39 +860,36 @@ elif report_choice == "Scope 3 Supply Chain Report":
     sc_xlsx = sc_io.getvalue()
 
     col1, col2 = st.columns(2)
-    with col1:
-        st.download_button(
-            "Excel – Scope 3 Supply Chain",
-            data=sc_xlsx,
-            file_name=f"farm_{selected_farm}_scope3_supply_chain_{current_year}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True,
-            type="primary",
-        )
-    with col2:
-        st.download_button(
-            "CSV – Scope 3 Supply Chain",
-            data=sc_csv,
-            file_name=f"farm_{selected_farm}_scope3_supply_chain_{current_year}.csv",
-            mime="text/csv",
-            use_container_width=True,
-        )
+    if "excel" in report_meta["formats"]:
+        with col1:
+            st.download_button(
+                "Excel – Scope 3 Supply Chain",
+                data=sc_xlsx,
+                file_name=f"farm_{selected_farm}_scope3_supply_chain_{current_year}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+                type="primary",
+            )
+    if "csv" in report_meta["formats"]:
+        with col2:
+            st.download_button(
+                "CSV – Scope 3 Supply Chain",
+                data=sc_csv,
+                file_name=f"farm_{selected_farm}_scope3_supply_chain_{current_year}.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
 
-# 3) SFI Plan (uses policy layer where available)
-elif report_choice == "SFI Plan":
+# 3) SFI Plan (SFI / Government)
+elif report_key == "sfi_plan":
     st.markdown("### SFI Plan")
     st.caption("High-level SFI readiness snapshot for soil, nutrients and hedgerows.")
 
-    # Prefer the scheme-agnostic policy output; fall back to old 'sfi' dict if needed
     policy_results = report_data.get("policy") or report_data.get("sfi", {})
 
-    soil_pct = policy_results.get("soil_score_pct", policy_results.get("soil_pct", 0.0))
-    nutrient_pct = policy_results.get(
-        "nutrient_score_pct", policy_results.get("nutrient_pct", 0.0)
-    )
-    hedgerow_pct = policy_results.get(
-        "hedgerow_score_pct", policy_results.get("hedgerow_pct", 0.0)
-    )
+    soil_pct = policy_results.get("soil_pct", 0.0)
+    nutrient_pct = policy_results.get("nutrient_pct", 0.0)
+    hedgerow_pct = policy_results.get("hedgerow_pct", 0.0)
     readiness_pct = policy_results.get("readiness_pct", 0.0)
 
     sfi_plan_df = pd.DataFrame(
@@ -905,23 +902,25 @@ elif report_choice == "SFI Plan":
                 "SFI Nutrient Compliance (%)": nutrient_pct,
                 "SFI Hedgerow Compliance (%)": hedgerow_pct,
                 "Overall SFI Readiness (%)": readiness_pct,
-                "Policy Layer": getattr(active_policy, "name", "SFI"),
+                "Policy Layer": policy_results.get("policy_name", "SFI"),
             }
         ]
     )
     sfi_csv = sfi_plan_df.to_csv(index=False).encode("utf-8")
 
-    st.download_button(
-        "CSV – SFI Plan Snapshot",
-        data=sfi_csv,
-        file_name=f"farm_{selected_farm}_sfi_plan_{current_year}.csv",
-        mime="text/csv",
-        use_container_width=True,
-        type="primary",
-    )
+    if "csv" in report_meta["formats"]:
+        st.download_button(
+            "CSV – SFI Plan Snapshot",
+            data=sfi_csv,
+            file_name=f"farm_{selected_farm}_sfi_plan_{current_year}.csv",
+            mime="text/csv",
+            use_container_width=True,
+            type="primary",
+        )
+    # later we can add an SFI PDF when you have a template
 
-# 4) CSV & ESG Summary
-elif report_choice == "CSV & ESG Summary":
+# 4) CSV & ESG Summary (advisors / agronomists)
+elif report_key == "csv_esg_summary":
     st.markdown("### CSV & ESG Summary")
     st.caption("ESG scores plus a clean CSV for advisors and cooperatives.")
 
@@ -941,18 +940,14 @@ elif report_choice == "CSV & ESG Summary":
                 "Total Area (ha)": report_data["farm"]["area_ha"],
                 "Emissions (kg/ha)": report_data["emissions"]["emissions_per_ha"],
                 "Nitrogen Use (kg/ha)": report_data["emissions"]["n_per_ha"],
-                "SFI / Policy Readiness (%)": policy_results.get(
-                    "readiness_pct", 0.0
-                ),
-                "Policy Layer": getattr(active_policy, "name", "SFI"),
+                "SFI / Policy Readiness (%)": policy_results.get("readiness_pct", 0.0),
+                "Policy Layer": policy_results.get("policy_name", "SFI"),
             }
         ]
     )
     esg_csv = esg_summary_df.to_csv(index=False).encode("utf-8")
-    activity_csv = report_data["activity"].to_csv(index=False).encode("utf-8")
 
-    col1, col2 = st.columns(2)
-    with col1:
+    if "csv" in report_meta["formats"]:
         st.download_button(
             "CSV – ESG Summary",
             data=esg_csv,
@@ -961,17 +956,9 @@ elif report_choice == "CSV & ESG Summary":
             use_container_width=True,
             type="primary",
         )
-    with col2:
-        st.download_button(
-            "CSV – Raw Activity Data",
-            data=activity_csv,
-            file_name=f"farm_{selected_farm}_activity_data_{current_year}.csv",
-            mime="text/csv",
-            use_container_width=True,
-        )
 
-# 5) Sustainability Summary
-elif report_choice == "Sustainability Summary":
+# 5) Sustainability Summary (farmers)
+elif report_key == "sustainability_summary":
     st.markdown("### Sustainability Summary")
     st.caption("Farmer-facing ESG narrative with charts and practical actions.")
 
@@ -984,33 +971,31 @@ elif report_choice == "Sustainability Summary":
             year_data = filtered_esg[filtered_esg["year"] == year]
             if not year_data.empty:
                 historical_data.append(
-                    {
-                        "year": year,
-                        "esg_score": year_data.iloc[0]["esg_score"],
-                    }
+                    {"year": year, "esg_score": year_data.iloc[0]["esg_score"]}
                 )
         if len(historical_data) > 1:
             line_fig_for_pdf = create_progress_line_chart(historical_data)
 
-    if st.button(
-        "PDF – Sustainability Summary", type="primary", use_container_width=True
-    ):
-        with st.spinner("🔄 Generating sustainability report..."):
-            pdf_buffer = generate_pdf_report(
-                farm_data=my_farm,
-                farmer_name=greeting_name,
-                year=current_year,
-                insights_list=insights,
-                gauge_fig=gauge_fig,
-                pie_fig=pie_fig,
-                donut_fig=donut_fig,
-                bar_fig=comparison_fig,
-                line_fig=line_fig_for_pdf,
-            )
-            st.download_button(
-                label="Download Sustainability PDF",
-                data=pdf_buffer,
-                file_name=f"farm_{selected_farm}_sustainability_summary_{current_year}.pdf",
-                mime="application/pdf",
-                use_container_width=True,
-            )
+    if "pdf" in report_meta["formats"]:
+        if st.button(
+            "PDF – Sustainability Summary", type="primary", use_container_width=True
+        ):
+            with st.spinner("🔄 Generating sustainability report..."):
+                pdf_buffer = generate_pdf_report(
+                    farm_data=my_farm,
+                    farmer_name=greeting_name,
+                    year=current_year,
+                    insights_list=insights,
+                    gauge_fig=gauge_fig,
+                    pie_fig=pie_fig,
+                    donut_fig=donut_fig,
+                    bar_fig=comparison_fig,
+                    line_fig=line_fig_for_pdf,
+                )
+                st.download_button(
+                    label="Download Sustainability PDF",
+                    data=pdf_buffer,
+                    file_name=f"farm_{selected_farm}_sustainability_summary_{current_year}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                )
