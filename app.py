@@ -978,3 +978,39 @@ elif report_choice == "Sustainability Summary":
     from utils.pdf_report import generate_pdf_report
 
     line_fig_for_pdf = None
+    if view_mode == "Multi-Year Progress" and len(selected_years) > 1:
+        historical_data = []
+        for year in sorted(selected_years):
+            year_data = filtered_esg[filtered_esg["year"] == year]
+            if not year_data.empty:
+                historical_data.append(
+                    {
+                        "year": year,
+                        "esg_score": year_data.iloc[0]["esg_score"],
+                    }
+                )
+        if len(historical_data) > 1:
+            line_fig_for_pdf = create_progress_line_chart(historical_data)
+
+    if st.button(
+        "PDF – Sustainability Summary", type="primary", use_container_width=True
+    ):
+        with st.spinner("🔄 Generating sustainability report..."):
+            pdf_buffer = generate_pdf_report(
+                farm_data=my_farm,
+                farmer_name=greeting_name,
+                year=current_year,
+                insights_list=insights,
+                gauge_fig=gauge_fig,
+                pie_fig=pie_fig,
+                donut_fig=donut_fig,
+                bar_fig=comparison_fig,
+                line_fig=line_fig_for_pdf,
+            )
+            st.download_button(
+                label="Download Sustainability PDF",
+                data=pdf_buffer,
+                file_name=f"farm_{selected_farm}_sustainability_summary_{current_year}.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+            )
