@@ -4,8 +4,7 @@ import time
 from dotenv import load_dotenv
 import uuid
 import base64
-
-from utils.report_engine import build_master_report_data
+import io  # for in-memory Excel exports
 
 from utils.logging_interface import render_logging_interface
 
@@ -22,6 +21,9 @@ from utils.visualisations import (
     create_emissions_donut,
     create_comparison_bar
 )
+
+from utils.report_engine import FarmProfile, build_report, build_master_report_data
+from utils.report_export import render_report_to_pdf, build_excel_from_report
 
 # Load environment variables
 load_dotenv()
@@ -385,13 +387,13 @@ if uploaded_file is None:
     * Soil Type
     * Labour Hours
     * Yield (tons)
-    * Selling Price (£/ton)
+    * Selling Price (£/ton)
                                                                       
     Optional advanced 
     * Cover Crop (Yes/No)
     * Reduced Tillage (Yes/No)
     * Trees Planted
-    * Soil Test Conducted (Yes/No)
+    * Soil Test Conducted (Yes/No)
     * Notes
     """)
     
@@ -459,7 +461,6 @@ try:
         st.stop()
     
     # Check for Optional/Recommended presence for the TIP
-    # Check against a list of known optional internal names
     optional_internal_names = [
         'fertiliser_kgP2O5', 'fertiliser_kgK2O', 'soil_type', 'labour_hours',
         'yield_tons', 'selling_price_per_ton', 'cover_crop_planted_yes_no',
@@ -477,7 +478,6 @@ try:
 except Exception as e:
     st.error("### ⚠️ File Problem")
     st.markdown(f"Error reading file: {str(e)}")
-    # st.code(str(e)) # Uncomment to debug
     st.stop()
 
 # Compute ESG scores
@@ -522,16 +522,23 @@ else:
     my_farm = latest
     current_year = max(selected_years)
 
+# Build unified report_data object for all 5 reports
+report_data = build_master_report_data(
+    df=df,
+    my_farm=my_farm,
+    selected_farm=selected_farm,
+    current_year=current_year,
+    selected_years=selected_years,
+)
+
 # === HERO SECTION / HEADER ===
-# Load the icon
-icon_path = "assets/agriesg_icon.png" # Ensure this path matches exactly
+icon_path = "assets/agriesg_icon.png"
 icon_base64 = get_base64_image(icon_path)
 
-# Build the image tag or fallback to emoji if file missing
 if icon_base64:
     icon_html = f'<img src="data:image/png;base64,{icon_base64}" style="height: 50px; vertical-align: middle; margin-bottom: 8px; margin-right: 10px;">'
 else:
-    icon_html = "🌾" # Fallback if image not found
+    icon_html = "🌾"
 
 st.markdown(f'<h1 class="main-title">{icon_html} AgriESG Dashboard</h1>', unsafe_allow_html=True)
 st.markdown('<p class="subtitle">Simple insights for better farming</p>', unsafe_allow_html=True)
@@ -571,7 +578,6 @@ col1, col2, col3, col4 = st.columns(4)
 total_area = my_farm['total_farm_area_ha']
 emissions_per_ha = my_farm['emissions_per_ha']
 n_per_ha = my_farm['n_per_ha']
-# Check if SFI columns exist (might be 0 if optional SFI data missing)
 sfi_cols = ['sfi_soil_compliance_rate', 'sfi_nutrient_compliance_rate', 'sfi_hedgerow_compliance_rate']
 sfi_avg = sum(my_farm.get(c, 0) for c in sfi_cols) / 3 * 100
 
@@ -629,7 +635,6 @@ st.markdown("---")
 # === AI INSIGHTS ===
 st.markdown('<h2 class="section-title">💡 What You Can Do This Season</h2>', unsafe_allow_html=True)
 
-# Use Farm Name for greeting as requested
 greeting_name = my_farm.get('farm_name', 'Farm')
 
 with st.spinner(f"🤖 Generating advice for {greeting_name}..."):
@@ -701,79 +706,217 @@ with tab4:
     render_logging_interface()
 st.markdown("---")
 
-# === EXPORT ===
-st.markdown('<h2 class="section-title">Download Your Report</h2>', unsafe_allow_html=True)
+# === REPORTS HUB ===
+st.markdown('<h2 class="section-title">Reports</h2>', unsafe_allow_html=True)
+st.markdown("Download reports generated from the same underlying emissions and SFI engine.")
 
-col1, col2 = st.columns(2)
-
-# Prepare the greeting name based on Farm Name (matching AI insights logic)
 greeting_name = my_farm.get('farm_name', 'Farm Team')
 
-with col1:
-    if st.button("Download PDF Report", type="primary", use_container_width=True):
-        with st.spinner("🔄 Generating PDF..."):
-            from utils.pdf_report import generate_pdf_report
-            
-            # Get current line chart if multi-year
-            line_fig_for_pdf = None
-            if view_mode == "Multi-Year Progress" and len(selected_years) > 1:
-                historical_data = []
-                for year in sorted(selected_years):
-                    year_data = filtered_esg[filtered_esg['year'] == year]
-                    if not year_data.empty:
-                        historical_data.append({
-                            'year': year,
-                            'esg_score': year_data.iloc[0]['esg_score']
-                        })
-                
-                if len(historical_data) > 1:
-                    line_fig_for_pdf = create_progress_line_chart(historical_data)
-            
-            # Generate PDF
-            pdf_buffer = generate_pdf_report(
-                farm_data=my_farm,
-                farmer_name=greeting_name, 
-                year=current_year,
-                insights_list=insights,
-                gauge_fig=gauge_fig,
-                pie_fig=pie_fig,
-                donut_fig=donut_fig,
-                bar_fig=comparison_fig,
-                line_fig=line_fig_for_pdf
-            )
-            
-            st.download_button(
-                label="Download PDF",
-                data=pdf_buffer,
-                file_name=f"farm_{selected_farm}_esg_report_{current_year}.pdf",
-                mime="application/pdf",
-                use_container_width=True
-            )
+# 1. Emissions & Performance
+st.markdown("### 1️⃣ Emissions & Performance")
+st.caption("Scope 1 & 3 emissions and farm performance for banks and lenders.")
 
-with col2:
-    if st.button("Download CSV Report", type="primary", use_container_width=True):
-        report_data = {
-            'Farm ID': [selected_farm],
-            'Farm Name': [my_farm['farm_name']],
-            'Report For': [greeting_name], 
-            'Year': [current_year],
-            'ESG Score': [my_farm['esg_score']],
-            'Environment Score': [my_farm['e_score']],
-            'Social Score': [my_farm['s_score']],
-            'Governance Score': [my_farm['g_score']],
-            'Total Area (ha)': [total_area],
-            'Emissions (kg/ha)': [emissions_per_ha],
-            'Nitrogen Use (kg/ha)': [n_per_ha],
-            'SFI Compliance (%)': [sfi_avg]
+farm_profile = FarmProfile(
+    farm_name=report_data["farm"]["name"] or "Farm",
+    report_year=report_data["farm"]["year"],
+    base_year=min(report_data["farm"]["years_selected"]),
+)
+
+activity_for_emissions = report_data["activity"].rename(columns={
+    'field_name': 'Field Name',
+    'field_area_ha': 'Field Area (ha)',
+    'diesel_litres': 'Diesel Used (Litres)',
+    'fertiliser_kgN': 'Nitrogen Fertiliser (kg)',
+    'fertiliser_kgP2O5': 'Phosphate Fertiliser (kg)',
+    'fertiliser_kgK2O': 'Potash Fertiliser (kg)',
+})
+
+for col in [
+    'Field Name',
+    'Field Area (ha)',
+    'Diesel Used (Litres)',
+    'Nitrogen Fertiliser (kg)',
+    'Phosphate Fertiliser (kg)',
+    'Potash Fertiliser (kg)',
+]:
+    if col not in activity_for_emissions.columns:
+        if col == "Field Name":
+            activity_for_emissions[col] = "Field"
+        else:
+            activity_for_emissions[col] = 0
+
+emissions_report = build_report(activity_for_emissions, farm_profile)
+ep_pdf = render_report_to_pdf(emissions_report)
+ep_xlsx = build_excel_from_report(emissions_report)
+
+col_ep1, col_ep2 = st.columns(2)
+with col_ep1:
+    st.download_button(
+        "PDF – Emissions & Performance",
+        data=ep_pdf,
+        file_name=f"farm_{selected_farm}_emissions_performance_{current_year}.pdf",
+        mime="application/pdf",
+        use_container_width=True,
+        type="primary",
+    )
+with col_ep2:
+    st.download_button(
+        "Excel – Emissions Data",
+        data=ep_xlsx,
+        file_name=f"farm_{selected_farm}_emissions_data_{current_year}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True,
+    )
+
+st.markdown("---")
+
+# 2. Scope 3 Supply Chain Report
+st.markdown("### 2️⃣ Scope 3 Supply Chain Report")
+st.caption("Emissions by crop for buyers, retailers and supermarkets.")
+
+supply_chain_df = report_data["supply_chain"].copy()
+sc_csv = supply_chain_df.to_csv(index=False).encode("utf-8")
+
+sc_io = io.BytesIO()
+with pd.ExcelWriter(sc_io, engine="openpyxl") as writer:
+    supply_chain_df.to_excel(writer, index=False, sheet_name="Scope3 Supply Chain")
+sc_io.seek(0)
+sc_xlsx = sc_io.getvalue()
+
+col_sc1, col_sc2 = st.columns(2)
+with col_sc1:
+    st.download_button(
+        "Excel – Scope 3 Supply Chain",
+        data=sc_xlsx,
+        file_name=f"farm_{selected_farm}_scope3_supply_chain_{current_year}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True,
+        type="primary",
+    )
+with col_sc2:
+    st.download_button(
+        "CSV – Scope 3 Supply Chain",
+        data=sc_csv,
+        file_name=f"farm_{selected_farm}_scope3_supply_chain_{current_year}.csv",
+        mime="text/csv",
+        use_container_width=True,
+    )
+
+st.markdown("---")
+
+# 3. SFI Plan
+st.markdown("### 3️⃣ SFI Plan")
+st.caption("High-level SFI readiness snapshot for soil, nutrients and hedgerows.")
+
+sfi = report_data["sfi"]
+sfi_plan_df = pd.DataFrame(
+    [
+        {
+            "Farm ID": report_data["farm"]["id"],
+            "Farm Name": report_data["farm"]["name"],
+            "Year": report_data["farm"]["year"],
+            "SFI Soil Compliance (%)": sfi["soil_pct"],
+            "SFI Nutrient Compliance (%)": sfi["nutrient_pct"],
+            "SFI Hedgerow Compliance (%)": sfi["hedgerow_pct"],
+            "Overall SFI Readiness (%)": sfi["readiness_pct"],
         }
-        
-        report_df = pd.DataFrame(report_data)
-        csv = report_df.to_csv(index=False)
-        
+    ]
+)
+sfi_csv = sfi_plan_df.to_csv(index=False).encode("utf-8")
+
+st.download_button(
+    "CSV – SFI Plan Snapshot",
+    data=sfi_csv,
+    file_name=f"farm_{selected_farm}_sfi_plan_{current_year}.csv",
+    mime="text/csv",
+    use_container_width=True,
+    type="primary",
+)
+
+st.markdown("---")
+
+# 4. CSV & ESG Summary
+st.markdown("### 4️⃣ CSV & ESG Summary")
+st.caption("ESG scores plus a clean CSV for advisors and cooperatives.")
+
+esg = report_data["esg"]
+esg_summary_df = pd.DataFrame(
+    [
+        {
+            "Farm ID": report_data["farm"]["id"],
+            "Farm Name": report_data["farm"]["name"],
+            "Year": report_data["farm"]["year"],
+            "ESG Score": esg["esg_score"],
+            "Environment Score": esg["e_score"],
+            "Social Score": esg["s_score"],
+            "Governance Score": esg["g_score"],
+            "Total Area (ha)": report_data["farm"]["area_ha"],
+            "Emissions (kg/ha)": report_data["emissions"]["emissions_per_ha"],
+            "Nitrogen Use (kg/ha)": report_data["emissions"]["n_per_ha"],
+            "SFI Readiness (%)": report_data["sfi"]["readiness_pct"],
+        }
+    ]
+)
+esg_csv = esg_summary_df.to_csv(index=False).encode("utf-8")
+activity_csv = report_data["activity"].to_csv(index=False).encode("utf-8")
+
+col_esg1, col_esg2 = st.columns(2)
+with col_esg1:
+    st.download_button(
+        "CSV – ESG Summary",
+        data=esg_csv,
+        file_name=f"farm_{selected_farm}_esg_summary_{current_year}.csv",
+        mime="text/csv",
+        use_container_width=True,
+        type="primary",
+    )
+with col_esg2:
+    st.download_button(
+        "CSV – Raw Activity Data",
+        data=activity_csv,
+        file_name=f"farm_{selected_farm}_activity_data_{current_year}.csv",
+        mime="text/csv",
+        use_container_width=True,
+    )
+
+st.markdown("---")
+
+# 5. Sustainability Summary
+st.markdown("### 5️⃣ Sustainability Summary")
+st.caption("Farmer-facing ESG narrative with charts and practical actions.")
+
+from utils.pdf_report import generate_pdf_report
+
+line_fig_for_pdf = None
+if view_mode == "Multi-Year Progress" and len(selected_years) > 1:
+    historical_data = []
+    for year in sorted(selected_years):
+        year_data = filtered_esg[filtered_esg['year'] == year]
+        if not year_data.empty:
+            historical_data.append({
+                'year': year,
+                'esg_score': year_data.iloc[0]['esg_score']
+            })
+    if len(historical_data) > 1:
+        line_fig_for_pdf = create_progress_line_chart(historical_data)
+
+if st.button("PDF – Sustainability Summary", type="primary", use_container_width=True):
+    with st.spinner("🔄 Generating sustainability report..."):
+        pdf_buffer = generate_pdf_report(
+            farm_data=my_farm,
+            farmer_name=greeting_name,
+            year=current_year,
+            insights_list=insights,
+            gauge_fig=gauge_fig,
+            pie_fig=pie_fig,
+            donut_fig=donut_fig,
+            bar_fig=comparison_fig,
+            line_fig=line_fig_for_pdf,
+        )
         st.download_button(
-            label="Download CSV",
-            data=csv,
-            file_name=f"farm_{selected_farm}_report_{current_year}.csv",
-            mime="text/csv",
-            use_container_width=True
+            label="Download Sustainability PDF",
+            data=pdf_buffer,
+            file_name=f"farm_{selected_farm}_sustainability_summary_{current_year}.pdf",
+            mime="application/pdf",
+            use_container_width=True,
         )
