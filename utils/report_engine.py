@@ -241,9 +241,7 @@ def build_master_report_data(
     - selected_farm: farm_id
     - current_year: reporting year (int)
     - selected_years: list of years in view mode
-    - policy: optional policy object (e.g. SFIPolicy) – we read its name/slug,
-      and for now infer % scores from existing SFI columns until a full
-      policy engine is wired.
+    - policy: optional policy object (e.g. SFIPolicy)
 
     Returns a dict with keys:
       - farm
@@ -309,7 +307,7 @@ def build_master_report_data(
         except Exception:
             return float(default)
 
-    # --- Emissions block (using existing aggregated metrics from my_farm) ---
+    # --- Emissions block (from my_farm aggregates) ---
     emissions_block = {
         "total_emissions": _safe_float(my_farm, "total_emissions", 0.0),
         "emissions_per_ha": _safe_float(my_farm, "emissions_per_ha", 0.0),
@@ -327,7 +325,7 @@ def build_master_report_data(
     # --- Simple classification description (data → frameworks) ---
     classification_block = {
         "scope1_columns": ["diesel_litres"] if "diesel_litres" in df.columns else [],
-        "scope2_columns": [],  # electricity, etc – future work
+        "scope2_columns": [],  # electricity etc. – future work
         "scope3_columns": [
             col
             for col in ["fertiliser_kgN", "fertiliser_kgP2O5", "fertiliser_kgK2O"]
@@ -344,6 +342,7 @@ def build_master_report_data(
     soil_rate = _safe_float(my_farm, "sfi_soil_compliance_rate", 0.0)
     nutrient_rate = _safe_float(my_farm, "sfi_nutrient_compliance_rate", 0.0)
     hedgerow_rate = _safe_float(my_farm, "sfi_hedgerow_compliance_rate", 0.0)
+
     # assume these rates are 0–1; convert to %
     soil_pct = soil_rate * 100.0
     nutrient_pct = nutrient_rate * 100.0
