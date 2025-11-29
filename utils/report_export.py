@@ -35,7 +35,7 @@ def build_excel_from_report(report_data: Dict[str, Any]) -> bytes:
                 "Intensity (kgCO2e/ha)": report_data["scope3_intensity_kg_per_ha"],
             },
             {
-                "Scope": "Total",
+                "Scope": "Scope Total",
                 "Description": "Total emissions",
                 "Emissions (tCO2e)": report_data["total_emissions"],
                 "Intensity (kgCO2e/ha)": report_data["intensity_kg_per_ha"],
@@ -151,5 +151,6 @@ def render_report_to_pdf(report_data: Dict[str, Any]) -> bytes:
         ),
     )
 
-    pdf_bytes = pdf.output(dest="S").encode("latin1")
+    # In fpdf2, output(dest="S") returns a bytearray, so we just cast to bytes
+    pdf_bytes = bytes(pdf.output(dest="S"))
     return pdf_bytes
