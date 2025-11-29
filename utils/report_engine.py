@@ -222,6 +222,103 @@ def _build_supply_chain_table(farm_year_df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+# === SFI LAND PARCELS (FOR SFI PLAN DOCUMENT) ===
+
+
+def _build_sfi_land_parcels(farm_year_df: pd.DataFrame) -> Dict[str, Any]:
+    """
+    Build land-parcel level view for SFI planning.
+
+    Uses your internal column names:
+      - field_name
+      - field_id (optional)
+      - field_area_ha
+      - crop_type
+      - soil_type
+      - cover_crop_planted_yes_no
+      - reduced_tillage_yes_no
+      - trees_planted_count
+      - soil_test_conducted_yes_no
+    """
+    if farm_year_df.empty:
+        return {
+            "land_parcels": [],
+            "summary": {
+                "total_area_ha": 0.0,
+                "num_fields": 0,
+                "cover_crop_area_pct": 0.0,
+                "reduced_tillage_area_pct": 0.0,
+                "soil_test_area_pct": 0.0,
+                "fields_with_trees_pct": 0.0,
+            },
+        }
+
+    parcels: List[Dict[str, Any]] = []
+    total_area = 0.0
+    cover_crop_area = 0.0
+    reduced_tillage_area = 0.0
+    soil_test_area = 0.0
+    trees_area = 0.0
+
+    for _, row in farm_year_df.iterrows():
+        field_area = float(row.get("field_area_ha", 0.0) or 0.0)
+        total_area += field_area
+
+        # Normalise Yes/No style fields
+        def is_yes(value: Any) -> bool:
+            return str(value).strip().lower() in ["yes", "y", "true", "1"]
+
+        cover_crop = is_yes(row.get("cover_crop_planted_yes_no", "no"))
+        reduced_tillage = is_yes(row.get("reduced_tillage_yes_no", "no"))
+        soil_test = is_yes(row.get("soil_test_conducted_yes_no", "no"))
+
+        trees_val = row.get("trees_planted_count", 0)
+        try:
+            trees_count = float(trees_val) if trees_val not in [None, ""] else 0.0
+        except Exception:
+            trees_count = 0.0
+
+        if cover_crop:
+            cover_crop_area += field_area
+        if reduced_tillage:
+            reduced_tillage_area += field_area
+        if soil_test:
+            soil_test_area += field_area
+        if trees_count > 0:
+            trees_area += field_area
+
+        parcels.append(
+            {
+                "field_id": row.get("field_id", ""),
+                "field_name": row.get("field_name", ""),
+                "field_area_ha": field_area,
+                "crop_type": row.get("crop_type", ""),
+                "soil_type": row.get("soil_type", ""),
+                "cover_crop": cover_crop,
+                "reduced_tillage": reduced_tillage,
+                "soil_test_conducted": soil_test,
+                "trees_planted_count": trees_count,
+            }
+        )
+
+    def pct(part: float, whole: float) -> float:
+        return float(part) / float(whole) * 100.0 if whole > 0 else 0.0
+
+    summary = {
+        "total_area_ha": total_area,
+        "num_fields": len(parcels),
+        "cover_crop_area_pct": pct(cover_crop_area, total_area),
+        "reduced_tillage_area_pct": pct(reduced_tillage_area, total_area),
+        "soil_test_area_pct": pct(soil_test_area, total_area),
+        "fields_with_trees_pct": pct(trees_area, total_area),
+    }
+
+    return {
+        "land_parcels": parcels,
+        "summary": summary,
+    }
+
+
 # === MASTER PIPELINE FOR ALL 5 REPORTS ===
 
 
@@ -252,6 +349,7 @@ def build_master_report_data(
       - sfi  (alias of policy for backwards compatibility)
       - supply_chain (DataFrame)
       - activity (DataFrame)
+      - sfi_plan (land-parcel view + summary)
     """
     # --- Filter to the selected farm and year(s) ---
     if "farm_id" in df.columns:
@@ -367,6 +465,9 @@ def build_master_report_data(
     # --- Supply chain (Scope 3 crop table) ---
     supply_chain_df = _build_supply_chain_table(farm_current_year)
 
+    # --- SFI plan block (land-parcel view for SFI plan document) ---
+    sfi_plan_block = _build_sfi_land_parcels(farm_current_year)
+
     # --- Assemble master dict ---
     master = {
         "farm": farm_block,
@@ -377,6 +478,7 @@ def build_master_report_data(
         "sfi": sfi_block,
         "supply_chain": supply_chain_df,
         "activity": farm_current_year,
+        "sfi_plan": sfi_plan_block,
     }
 
     return master
