@@ -1,0 +1,95 @@
+<mxfile>
+  <diagram name="Five Year Adoption and New Users">
+    <mxGraphModel>
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- Axes -->
+        <mxCell id="xaxis" edge="1" style="endArrow=none;strokeWidth=2;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="70" y="340" as="sourcePoint"/>
+            <mxPoint x="570" y="340" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="yaxis" edge="1" style="endArrow=none;strokeWidth=2;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="70" y="340" as="sourcePoint"/>
+            <mxPoint x="70" y="100" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Adoption S-curve (blue) -->
+        <mxCell id="adoptionCurve" edge="1" style="curved=1;strokeWidth=3;strokeColor=#0000FF;endArrow=none;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="100" y="320" as="sourcePoint"/>
+            <mxPoint x="540" y="130" as="targetPoint"/>
+            <Array as="points">
+              <!-- Year 2 -->
+              <mxPoint x="200" y="290"/>
+              <!-- Year 3 -->
+              <mxPoint x="320" y="240"/>
+              <!-- Year 4 -->
+              <mxPoint x="430" y="180"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- New Users bell curve (red) -->
+        <mxCell id="newUsersCurve" edge="1" style="curved=1;strokeWidth=3;strokeColor=#FF0000;endArrow=none;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="100" y="330" as="sourcePoint"/>
+            <mxPoint x="540" y="330" as="targetPoint"/>
+            <Array as="points">
+              <!-- Rising -->
+              <mxPoint x="200" y="280"/>
+              <mxPoint x="320" y="220"/>
+              <!-- Falling -->
+              <mxPoint x="430" y="280"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- X-axis labels -->
+        <mxCell id="y1label" value="Year 1" style="text;html=1;fontSize=12;" vertex="1">
+          <mxGeometry x="90" y="345" width="60" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="y2label" value="Year 2" style="text;html=1;fontSize=12;" vertex="1">
+          <mxGeometry x="190" y="345" width="60" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="y3label" value="Year 3" style="text;html=1;fontSize=12;" vertex="1">
+          <mxGeometry x="300" y="345" width="60" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="y4label" value="Year 4" style="text;html=1;fontSize=12;" vertex="1">
+          <mxGeometry x="410" y="345" width="60" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="y5label" value="Year 5" style="text;html=1;fontSize=12;" vertex="1">
+          <mxGeometry x="520" y="345" width="60" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- Axis titles -->
+        <mxCell id="ylab" value="Adoption / Market Share (%)" style="text;html=1;fontSize=12;" vertex="1">
+          <mxGeometry x="0" y="90" width="160" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="xlab" value="Years" style="text;html=1;fontSize=12;" vertex="1">
+          <mxGeometry x="540" y="355" width="60" height="25" as="geometry"/>
+        </mxCell>
+
+        <!-- Legend -->
+        <mxCell id="legendAdoption" value="Adoption" style="text;html=1;fontSize=12;fontColor=#0000FF;" vertex="1">
+          <mxGeometry x="380" y="110" width="90" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="legendNewUsers" value="New Users" style="text;html=1;fontSize=12;fontColor=#FF0000;" vertex="1">
+          <mxGeometry x="380" y="135" width="90" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- Title -->
+        <mxCell id="title" value="Five Year Revenue Path and Adoption Curve" style="text;html=1;fontSize=14;fontStyle=1;" vertex="1">
+          <mxGeometry x="150" y="60" width="360" height="30" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
